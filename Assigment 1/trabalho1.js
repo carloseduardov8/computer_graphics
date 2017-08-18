@@ -1,9 +1,10 @@
 function setup() {
+	//Sets the workspace:
 	createCanvas(1920, 1080);
 }
 
-var lines = [];
-var curr_line = 0;
+var lines = [];			//Array of lines
+var curr_line = 0;		//Next line to be formed
 
 function draw() {
 	
@@ -26,7 +27,7 @@ function draw() {
 //Actions performed when mouse is pressed (once):
 function mousePressed() {
 	//Creates a new line and adds it to the array of lines:
-	lines.push(new Line(new Point(mouseX, mouseY)););
+	lines.push(new Line(new Point(mouseX, mouseY)));
 }
 
 //Actions performed when mouse is released:
