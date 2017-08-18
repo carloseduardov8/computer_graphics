@@ -7,12 +7,15 @@ var curr_line = 0;
 
 function draw() {
 	
-	background(200);
+	background(200); //Draws gray background
 	
+	//Draws every line:
 	for (i=0; i<lines.length; i++){
 		if (i == curr_line){
-			lines[i].display(mouseX, mouseY);
+			//Case where line is still being formed:
+			lines[i].display(new Point(mouseX, mouseY));
 		} else {
+			//Case where line has already been formed:
 			lines[i].display_final();
 		}
 	}
@@ -20,31 +23,52 @@ function draw() {
 
 }
 
-
+//Actions performed when mouse is pressed (once):
 function mousePressed() {
-	nline = new Line(mouseX, mouseY);
-	lines.push(nline);
+	//Creates a new line and adds it to the array of lines:
+	lines.push(new Line(new Point(mouseX, mouseY)););
 }
 
+//Actions performed when mouse is released:
 function mouseReleased() {
-	lines[curr_line].lastX = mouseX;
-	lines[curr_line].lastY = mouseY;
+	//Sets the second point of the current line being formed to the current mouse position:
+	lines[curr_line].last = new Point(mouseX, mouseY);
 	curr_line += 1;
 }
 
+//Calculates the orientation of points *p*, *q* and *r*:
+function orientation(p, q, r){
+	var val = (q.y - p.y) * (r.x - q.x) -
+              (q.x - p.x) * (r.y - q.y);
+	if (val == 0){
+		return 0; //Colinear
+	} else if (val > 0){
+		return 1; //Clockwise orientation
+	} else {
+		return 2; //Counterclockwise orientation
+	}
+}
+
+
+//Point class:
+function Point(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
 //Line class:
-function Line(x, y) {
+function Line(point) {
 	
-	this.firstX = x;
-	this.firstY = y;
-	this.lastX = 0;
-	this.lastY = 0;
+	this.first = point;
+	this.last = undefined;
 	
-	this.display = function(d_x, d_y){
-		line(this.firstX, this.firstY, d_x, d_y);
+	//Draw line from points *first* to *p_mouse*:
+	this.display = function(p_mouse){
+		line(this.first.x, this.first.y, p_mouse.x, p_mouse.y);
 	}
 	
+	//Draw line from points *first* to *last*:
 	this.display_final = function(){
-		line(this.firstX, this.firstY, this.lastX, this.lastY);
+		line(this.first.x, this.first.y, this.last.x, this.last.y);
 	}
 }
