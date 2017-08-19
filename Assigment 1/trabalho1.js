@@ -24,7 +24,6 @@ function draw() {
 				if (j == i || j == curr_line) continue;
 				if ( doIntersect(lines[i].first, lines[i].last, lines[j].first, lines[j].last) ){
 					var intersection = intersectionPoint(lines[i], lines[j]);
-					console.log("x: " + intersection.x + ", y: " + intersection.y);
 					ellipse(intersection.x, intersection.y, 10, 10);
 				}
 			}
@@ -104,26 +103,37 @@ function doIntersect(p1, q1, p2, q2)
 
 
 // Function that calculates the point of intersection of two lines:
+//DISCLAIMER: This function was inspired by a Flassari.is 2008 post for C++
 function intersectionPoint(line1, line2){
-	// Line1
-    var A1 =  line1.last.y - line1.first.y ;
-    var B1 =  line1.last.x - line1.first.x ;
-    var C1 = A1*line1.first.x + B1*line1.first.y;
-
-    // Line2
-    var A2 =  line2.last.y - line2.first.y ;
-    var B2 =  line2.last.x - line2.first.x ;
-    var C2 = A2 * line2.first.x + B2 * line2.first.y;
-	
-	det = A1*B2 - A2*B1;
-	
-    if (det == 0){
-        return null; 	// Parallel lines
-    } else {
-        var x = (B2*C1 - B1*C2) / det;
-        var y = (A1 * C2 - A2 * C1) / det;
-        return new Point(x,y);
-    }
+	// Store the values for fast access and easy
+	// equations-to-code conversion
+	var x1 = line1.first.x;
+	var x2 = line1.last.x; 
+	var x3 = line2.first.x; 
+	var x4 = line2.last.x;
+	var y1 = line1.first.y;
+	var y2 = line1.last.y;  
+	var y3 = line2.first.y; 
+	var y4 = line2.last.y;
+	 
+	var d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+	// If d is zero, there is no intersection:
+	if (d == 0) return undefined;
+	 
+	// Get the x and y
+	var pre = (x1*y2 - y1*x2);
+	var post = (x3*y4 - y3*x4);
+	var  x = ( pre * (x3 - x4) - (x1 - x2) * post ) / d;
+	var  y = ( pre * (y3 - y4) - (y1 - y2) * post ) / d;
+	 
+	// Check if the x and y coordinates are within both lines
+	if ( x < min(x1, x2) || x > max(x1, x2) ||
+	x < min(x3, x4) || x > max(x3, x4) ) return undefined;
+	if ( y < min(y1, y2) || y > max(y1, y2) ||
+	y < min(y3, y4) || y > max(y3, y4) ) return undefined;
+	 
+	// Return the point of intersection
+	return new Point(x, y);
 }
 
 
