@@ -5,6 +5,9 @@ function setup() {
 
 var lines = [];			// Array of lines
 var curr_line = 0;		// Next line to be formed
+var default_dist = 30;	// Distance to decide if a mouse press has hit a line or not
+var edit_mode;			// Mouse edit mode: creating a new line (0); editing an existing one
+						// through its first point (1); editing through last point (2)
 
 function draw() {
 	
@@ -45,15 +48,38 @@ function draw() {
 
 // Actions performed when mouse is pressed (once):
 function mousePressed() {
+	// Checks if the edge of an existing line was selected:
+	for (i=0; i<lines.length; i++){
+		// If first point was selected:
+		if ( lines[i].first_dist(mouseX, mouseY) <= default_dist ){
+			edit_mode = {"line": i, "point": "first"};
+			return;
+		// If last point was selected:
+		} else if ( lines[i].last_dist(mouseX, mouseY) <= default_dist ){
+			edit_mode = {"line": i, "point": "last"};
+			return;
+		}
+	}
 	// Creates a new line and adds it to the array of lines:
 	lines.push(new Line(new Point(mouseX, mouseY)));
+	edit_mode = 0;
 }
 
 // Actions performed when mouse is released:
 function mouseReleased() {
-	// Sets the second point of the current line being formed to the current mouse position:
-	lines[curr_line].last = new Point(mouseX, mouseY);
-	curr_line += 1;
+	// If *edit_mode* means a new line is being created:
+	if (edit_mode == 0){
+		// Sets the second point of the current line being formed to the current mouse position:
+		lines[curr_line].last = new Point(mouseX, mouseY);
+		curr_line += 1;
+	// If *edit_mode* means a line is being edited:
+	} else {
+		if (edit_mode["point"] == "first"){
+			lines[edit_mode["line"]].first = new Point(mouseX, mouseY);
+		} else if (edit_mode["point"] == "last"){
+			lines[edit_mode["line"]].last = new Point(mouseX, mouseY);
+		}
+	}
 }
 
 // Calculates the orientation of points *p*, *q* and *r*:
@@ -166,5 +192,13 @@ function Line(point) {
 	// Draws line from points *first* to *last*:
 	this.display_final = function(){
 		line(this.first.x, this.first.y, this.last.x, this.last.y);
+	}
+	
+	this.first_dist = function(x, y){
+		return Math.sqrt( Math.pow(this.first.x-x, 2) + Math.pow(this.first.y-y, 2));
+	}
+	
+	this.last_dist = function(x, y){
+		return Math.sqrt( Math.pow(this.last.x-x, 2) + Math.pow(this.last.y-y, 2));
 	}
 }
