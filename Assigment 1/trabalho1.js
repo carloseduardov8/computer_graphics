@@ -21,9 +21,18 @@ function draw() {
 			
 			// Checks for intersections:
 			for (j=0; j<lines.length; j++){
-				if (j == i || j == curr_line) continue;
-				if ( doIntersect(lines[i].first, lines[i].last, lines[j].first, lines[j].last) ){
-					var intersection = intersectionPoint(lines[i], lines[j]);
+				// Intersection between line and itself doesnt make sense:
+				if (j == i) continue;
+				curr_mouse = new Point(mouseX, mouseY);
+				// Checks intersections for current line being formed:
+				if (j == curr_line){
+					if (j == curr_line && doIntersect(lines[i].first, lines[i].last, lines[j].first, curr_mouse)){
+						var intersection = intersectionPoint(lines[i].first, lines[i].last, lines[j].first, curr_mouse);
+						ellipse(intersection.x, intersection.y, 10, 10);
+					}
+				// Checks intersections for remaining lines:
+				} else if ( doIntersect(lines[i].first, lines[i].last, lines[j].first, lines[j].last) ){
+					var intersection = intersectionPoint(lines[i].first, lines[i].last, lines[j].first, lines[j].last);
 					ellipse(intersection.x, intersection.y, 10, 10);
 				}
 			}
@@ -104,17 +113,17 @@ function doIntersect(p1, q1, p2, q2)
 
 // Function that calculates the point of intersection of two lines:
 //DISCLAIMER: This function was inspired by a Flassari.is 2008 post for C++
-function intersectionPoint(line1, line2){
+function intersectionPoint(p1, q1, p2, q2){
 	// Store the values for fast access and easy
 	// equations-to-code conversion
-	var x1 = line1.first.x;
-	var x2 = line1.last.x; 
-	var x3 = line2.first.x; 
-	var x4 = line2.last.x;
-	var y1 = line1.first.y;
-	var y2 = line1.last.y;  
-	var y3 = line2.first.y; 
-	var y4 = line2.last.y;
+	var x1 = p1.x;
+	var x2 = q1.x; 
+	var x3 = p2.x; 
+	var x4 = q2.x;
+	var y1 = p1.y;
+	var y2 = q1.y;  
+	var y3 = p2.y; 
+	var y4 = q2.y;
 	 
 	var d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
 	// If d is zero, there is no intersection:
