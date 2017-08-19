@@ -3,11 +3,11 @@ function setup() {
 	createCanvas(1920, 1080);
 }
 
-var lines = [];			// Array of lines
-var curr_line = 0;		// Next line to be formed
-var default_dist = 30;	// Distance to decide if a mouse press has hit a line or not
-var edit_mode;			// Mouse edit mode: creating a new line (0); editing an existing one
-						// through its first point (1); editing through last point (2)
+var lines = [];									// Array of lines
+var curr_line = 0;								// Next line to be formed
+var default_dist = 30;							// Distance to decide if a mouse press has hit a line or not
+var edit_mode = {"line": -1, "mode": -1};		// Contains line being edited and mode of operation: "create_new",
+												// "edit_first" (to edit first point) or "edit_last"
 
 function draw() {
 	
@@ -15,12 +15,16 @@ function draw() {
 	
 	// Draws every line:
 	for (i=0; i<lines.length; i++){
-		if (i == curr_line){
-			// Case where line is still being formed:
-			lines[i].display(new Point(mouseX, mouseY));
+		// Case where line is still being formed:
+		if (i == edit_mode["line"]){
+			if (edit_mode["mode"] == "create_new" || edit_mode["mode"] == "edit_last"){
+				lines[i].display_last(new Point(mouseX, mouseY));
+			} else if (edit_mode["mode"] == "edit_first"){
+				lines[i].display_first(new Point(mouseX, mouseY));
+			}
+		// Case where line has already been formed:
 		} else {
-			// Case where line has already been formed:
-			lines[i].display_final();
+			lines[i].display_done();
 			
 			// Checks for intersections:
 			for (j=0; j<lines.length; j++){
@@ -28,15 +32,22 @@ function draw() {
 				if (j == i) continue;
 				curr_mouse = new Point(mouseX, mouseY);
 				// Checks intersections for current line being formed:
-				if (j == curr_line){
-					if (j == curr_line && doIntersect(lines[i].first, lines[i].last, lines[j].first, curr_mouse)){
-						var intersection = intersectionPoint(lines[i].first, lines[i].last, lines[j].first, curr_mouse);
-						ellipse(intersection.x, intersection.y, 10, 10);
+				if (j == edit_mode["line"]){
+					if (edit_mode["mode"] == "create_new" || edit_mode["mode"] == "edit_last"){
+						if (j == edit_mode["line"] && doIntersect(lines[i].first, lines[i].last, lines[j].first, curr_mouse)){
+							var intersection = intersectionPoint(lines[i].first, lines[i].last, lines[j].first, curr_mouse);
+							draw_ellipse(intersection);
+						}
+					} else if (edit_mode["mode"] == "edit_first"){
+						if (j == edit_mode["line"] && doIntersect(lines[i].first, lines[i].last, curr_mouse, lines[j].last)){
+							var intersection = intersectionPoint(lines[i].first, lines[i].last, curr_mouse, lines[j].last);
+							draw_ellipse(intersection);
+						}
 					}
 				// Checks intersections for remaining lines:
-				} else if ( doIntersect(lines[i].first, lines[i].last, lines[j].first, lines[j].last) ){
+				} else if ( doIntersect(lines[i].first, lines[i].last, lines[j].first, lines[j].last) ) {
 					var intersection = intersectionPoint(lines[i].first, lines[i].last, lines[j].first, lines[j].last);
-					ellipse(intersection.x, intersection.y, 10, 10);
+					draw_ellipse(intersection);
 				}
 			}
 		}
@@ -52,34 +63,32 @@ function mousePressed() {
 	for (i=0; i<lines.length; i++){
 		// If first point was selected:
 		if ( lines[i].first_dist(mouseX, mouseY) <= default_dist ){
-			edit_mode = {"line": i, "point": "first"};
+			edit_mode = {"line": i, "mode": "edit_first"};
 			return;
 		// If last point was selected:
 		} else if ( lines[i].last_dist(mouseX, mouseY) <= default_dist ){
-			edit_mode = {"line": i, "point": "last"};
+			edit_mode = {"line": i, "mode": "edit_last"};
 			return;
 		}
 	}
 	// Creates a new line and adds it to the array of lines:
+	edit_mode = {"line": lines.length, "mode": "create_new"};
 	lines.push(new Line(new Point(mouseX, mouseY)));
-	edit_mode = 0;
 }
 
 // Actions performed when mouse is released:
 function mouseReleased() {
 	// If *edit_mode* means a new line is being created:
-	if (edit_mode == 0){
+	if (edit_mode["mode"] == "create_new"){
 		// Sets the second point of the current line being formed to the current mouse position:
-		lines[curr_line].last = new Point(mouseX, mouseY);
-		curr_line += 1;
+		lines[edit_mode["line"]].last = new Point(mouseX, mouseY);
 	// If *edit_mode* means a line is being edited:
-	} else {
-		if (edit_mode["point"] == "first"){
-			lines[edit_mode["line"]].first = new Point(mouseX, mouseY);
-		} else if (edit_mode["point"] == "last"){
-			lines[edit_mode["line"]].last = new Point(mouseX, mouseY);
-		}
+	} else if (edit_mode["mode"] == "edit_first"){
+		lines[edit_mode["line"]].first = new Point(mouseX, mouseY);
+	} else if (edit_mode["mode"] == "edit_last"){
+		lines[edit_mode["line"]].last = new Point(mouseX, mouseY);
 	}
+	edit_mode = {"line": -1, "mode": -1};
 }
 
 // Calculates the orientation of points *p*, *q* and *r*:
@@ -172,6 +181,11 @@ function intersectionPoint(p1, q1, p2, q2){
 }
 
 
+function draw_ellipse(point){
+	ellipse(point.x, point.y, 10, 10);
+}
+
+
 // Point class:
 function Point(x, y) {
 	this.x = x;
@@ -185,12 +199,17 @@ function Line(point) {
 	this.last = undefined;
 	
 	// Draws line from points *first* to *p_mouse*:
-	this.display = function(p_mouse){
+	this.display_last = function(p_mouse){
 		line(this.first.x, this.first.y, p_mouse.x, p_mouse.y);
 	}
 	
+	// Draws line from points *p_mouse* to *last*:
+	this.display_first = function(p_mouse){
+		line(p_mouse.x, p_mouse.y, this.last.x, this.last.y);
+	}
+	
 	// Draws line from points *first* to *last*:
-	this.display_final = function(){
+	this.display_done = function(){
 		line(this.first.x, this.first.y, this.last.x, this.last.y);
 	}
 	
