@@ -91,7 +91,7 @@ function mousePressed() {
 	
 	// Checks if the middle part of an existing line was selected:
 	for (i=0; i<lines.length; i++){
-		if (lines[i].middle_dist(mouseX, mouseY) <= default_dist){
+		if (lines[i].middle_dist(mouseX, mouseY) <= default_dist && lines[i].within_line(mouseX, mouseY)){
 			lines[i].update_placeholder(mouseX, mouseY);
 			edit_mode = {"line": i, "mode": "edit_middle"};
 			return;
@@ -258,6 +258,21 @@ function Line(point) {
 	// Returns the distance between *last* and (x,y):
 	this.last_dist = function(x, y){
 		return Math.sqrt( Math.pow(this.last.x-x, 2) + Math.pow(this.last.y-y, 2));
+	}
+	
+	// Checks if *x* and *y* are between *first* and *last*:
+	this.within_line = function(x, y){
+		if (this.first.x > this.last.x){
+			if (x > this.first.x || x < this.last.x){
+				return false;
+			}
+		}
+		if (this.first.y > this.last.y){
+			if (y > this.first.y || y < this.last.y){
+				return false;
+			}
+		}
+		return true;
 	}
 	
 	// Returns the distance form points (x,y) to the line:
