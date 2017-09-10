@@ -89,28 +89,27 @@ function resize() {
 //
 //------------------------------------------------------------
 
-var material; // A line material
-var default_dist = 20; // Default distance
-var edit_mode = {"poly": -1, "mode": -1};; //Current polygon editing state
-var polygons = [];
-var points = [];
+var material; 									// A line material
+var default_dist = 20; 							// Default distance for condition testing
+var edit_mode = {"poly": -1, "mode": -1};; 		// Current polygon editing state
+var polygons = [];								// Array of existing polygons
+var ph_geo = new THREE.Geometry();			// Placeholder geometry for any operation
 
 
 //
 // The render callback
 //
 function render () {
+	// If a new polygon is being created:
 	if (edit_mode["mode"] == "create_new"){
 		var line = polygons[edit_mode["poly"]];
 		var p = new THREE.Vector3 (mouseX,mouseY,0);
-		var geometry = new THREE.Geometry();
-		// Recreates the geometry of the line:
-		for (var i=0; i<points.length; i++){
-			geometry.vertices.push(points[i]);
-		}
+		// Clones placeholder geometry to line geometry:
+		var geometry = ph_geo.clone();
 		geometry.vertices.push(p);
 		line.geometry = geometry;
 	}
+	// Updates the scene:
 	requestAnimationFrame( render );
 	renderer.render( scene, camera );
 };
@@ -131,33 +130,30 @@ function mousePressed() {
 		// Creates a new line to start drawing the polygon:
 		var geometry = new THREE.Geometry();
 		var p = new THREE.Vector3 (mouseX,mouseY,0);
-		points.push(p);
+		ph_geo.vertices.push(p);
 		geometry.vertices.push (p);
 		var line = new THREE.Line (geometry, material);
 		// Adds created line to the list of polygons:
 		polygons.push(line);
 		scene.add(line);
-		selected = line;
 	// If a polygon is being created at the moment:
 	} else if (edit_mode["mode"] == "create_new"){
 		var p = new THREE.Vector3 (mouseX,mouseY,0);
 		// Checks to see if polygon should be closed:
-		if (p.distanceTo(points[0]) < default_dist){
-			// Adds the last point to the array (same as first one):
-			points.push(points[0]);
-			// Recreates the geometry of the line:
-			var geometry = new THREE.Geometry();
-			for (var i=0; i<points.length; i++){
-				geometry.vertices.push(points[i]);
-			}
-			// Add the geometry to the line and finish the editing process:
+		if (p.distanceTo(ph_geo.vertices[0]) < default_dist){
+			// Adds the geometry to the line and finish the editing process:
 			var line = polygons[edit_mode["poly"]];
-			line.geometry = geometry;
-			points = [];
+			ph_geo.vertices.push(ph_geo.vertices[0]);
+			line.geometry = ph_geo;
+			ph_geo = new THREE.Geometry();
 			edit_mode["mode"] = -1;
+			
+			var mesh_material = new THREE.MeshBasicMaterial( { color: 0x4286f4 } );
+			var mesh = new THREE.Mesh( line.geometry.clone(), mesh_material );
+			scene.add(mesh);
 		} else {
 			// Adds the next point to the newborn polygon:
-			points.push(p);
+			ph_geo.vertices.push(p);
 		}
 	}
 }
