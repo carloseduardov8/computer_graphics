@@ -130,9 +130,11 @@ function mousePressed() {
 		edit_mode["mode"] = "create_new";
 		// Creates a new line to start drawing the polygon:
 		var geometry = new THREE.Geometry();
+		ph_geo.points = [];
 		var p = new THREE.Vector3 (mouseX,mouseY,0);
 		ph_geo.vertices.push(p);
 		geometry.vertices.push (p);
+		ph_geo.points.push(p);
 		var line = new THREE.Line (geometry, material);
 		// Adds created line to the scene:
 		new_line = line;
@@ -145,31 +147,42 @@ function mousePressed() {
 			// Adds the geometry to the line and finishes the editing process:
 			ph_geo.vertices.push(ph_geo.vertices[0]);
 			new_line.geometry = ph_geo;
-			ph_geo = new THREE.Geometry();
-			edit_mode["mode"] = -1;
 			// Creates the resulting polygon and adds it to the scene:
 			var shape = new THREE.Shape(new_line.geometry.vertices);
 			var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
 			var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
 			var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
 			var mesh = new THREE.Mesh( geometry, material2 ) ;
+			mesh.geometry.points = [];
+			mesh.geometry.points = ph_geo.points;
 			scene.remove(new_line);
 			polygons.push(mesh);
 			scene.add( mesh );
+			ph_geo = new THREE.Geometry();
+			edit_mode["mode"] = -1;
 		} else {
 			// Adds the next point to the newborn polygon:
 			ph_geo.vertices.push(p);
+			ph_geo.points.push(p);
 		}
 	}
 }
 
 function doubleClick() {
-	var origin = new THREE.Vector3(mouseX,mouseY,0);
-	var dir = new THREE.Vector3(0,1,0);
-	var raycaster = new THREE.Raycaster(origin, dir);
-	console.log("--------");
+	// Checks for collision with every polygon:
 	for (var i=0; i<polygons.length; i++){
-		console.log(raycaster.intersectObject(polygons[i]));
+		var polygon_points = new Array(polygons[i].geometry.points.length);
+		// Builds an array containing lists of the points that define the polygon:
+		for (var j=0; j<polygons[i].geometry.points.length; j++){
+			polygon_points[j] = new Array(2);
+			polygon_points[j][0] = ( polygons[i].geometry.points[j].x );
+			polygon_points[j][1] = ( polygons[i].geometry.points[j].y );
+		}
+		// Checks for collision:
+		if ( inside([mouseX, mouseY], polygon_points) ){
+			console.log("Collision with polygon "+i);
+		}
+		var polygon_points = [];
 	}
 }
 
@@ -178,5 +191,24 @@ function mouseDragged() {
 
 function mouseReleased() {
 }
+
+function inside(point, vs) {
+    // ray-casting algorithm based on
+    // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+
+    var x = point[0], y = point[1];
+
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i][0], yi = vs[i][1];
+        var xj = vs[j][0], yj = vs[j][1];
+
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+};
 
 init();
