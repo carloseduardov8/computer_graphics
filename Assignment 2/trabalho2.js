@@ -100,11 +100,14 @@ var edit_mode = {"poly": -1, "mode": -1};; 		// Current polygon editing state
 var polygons = [];								// Array of existing polygons
 var ph_geo = new THREE.Geometry();				// Placeholder geometry for any operation
 var new_line;									// Current line being created
+var click_timer = 50;							// Time since last click
+var time_to_wait = 15;							// Time to identify a double click
 
 //
 // The render callback
 //
 function render () {
+	if (click_timer < time_to_wait+10) click_timer += 1;
 	// If a new polygon is being created:
 	if (edit_mode["mode"] == "create_new"){
 		var p = new THREE.Vector3 (mouseX,mouseY,0);
@@ -124,46 +127,54 @@ function setup () {
 
 
 function mousePressed() {
-	// If no objects are being edited at the moment:
-	if (edit_mode["mode"] == -1){
-		// States the creation of the new polygon:
-		edit_mode["mode"] = "create_new";
-		// Creates a new line to start drawing the polygon:
-		var geometry = new THREE.Geometry();
-		ph_geo.points = [];
-		var p = new THREE.Vector3 (mouseX,mouseY,0);
-		ph_geo.vertices.push(p);
-		geometry.vertices.push (p);
-		ph_geo.points.push(p);
-		var line = new THREE.Line (geometry, material);
-		// Adds created line to the scene:
-		new_line = line;
-		scene.add(line);
-	// If a polygon is being created at the moment:
-	} else if (edit_mode["mode"] == "create_new"){
-		var p = new THREE.Vector3 (mouseX,mouseY,0);
-		// Checks to see if polygon should be closed:
-		if (p.distanceTo(ph_geo.vertices[0]) < default_dist){
-			// Adds the geometry to the line and finishes the editing process:
-			ph_geo.vertices.push(ph_geo.vertices[0]);
-			new_line.geometry = ph_geo;
-			// Creates the resulting polygon and adds it to the scene:
-			var shape = new THREE.Shape(new_line.geometry.vertices);
-			var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
-			var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
-			var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
-			var mesh = new THREE.Mesh( geometry, material2 ) ;
-			mesh.geometry.points = [];
-			mesh.geometry.points = ph_geo.points;
-			scene.remove(new_line);
-			polygons.push(mesh);
-			scene.add( mesh );
-			ph_geo = new THREE.Geometry();
-			edit_mode["mode"] = -1;
-		} else {
-			// Adds the next point to the newborn polygon:
+	if (click_timer <= time_to_wait){
+		edit_mode["mode"] = -1;
+		ph_geo = new THREE.Geometry();
+		scene.remove(new_line);	
+	}
+	if (click_timer > time_to_wait){
+		click_timer = 0;
+		// If no objects are being edited at the moment:
+		if (edit_mode["mode"] == -1){
+			// States the creation of the new polygon:
+			edit_mode["mode"] = "create_new";
+			// Creates a new line to start drawing the polygon:
+			var geometry = new THREE.Geometry();
+			ph_geo.points = [];
+			var p = new THREE.Vector3 (mouseX,mouseY,0);
 			ph_geo.vertices.push(p);
+			geometry.vertices.push (p);
 			ph_geo.points.push(p);
+			var line = new THREE.Line (geometry, material);
+			// Adds created line to the scene:
+			new_line = line;
+			scene.add(line);
+		// If a polygon is being created at the moment:
+		} else if (edit_mode["mode"] == "create_new"){
+			var p = new THREE.Vector3 (mouseX,mouseY,0);
+			// Checks to see if polygon should be closed:
+			if ((p.distanceTo(ph_geo.vertices[0]) < default_dist) && (ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
+				// Adds the geometry to the line and finishes the editing process:
+				ph_geo.vertices.push(ph_geo.vertices[0]);
+				new_line.geometry = ph_geo;
+				// Creates the resulting polygon and adds it to the scene:
+				var shape = new THREE.Shape(new_line.geometry.vertices);
+				var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
+				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
+				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
+				var mesh = new THREE.Mesh( geometry, material2 ) ;
+				mesh.geometry.points = [];
+				mesh.geometry.points = ph_geo.points;
+				scene.remove(new_line);
+				polygons.push(mesh);
+				scene.add( mesh );
+				ph_geo = new THREE.Geometry();
+				edit_mode["mode"] = -1;
+			} else if  ((ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
+				// Adds the next point to the newborn polygon:
+				ph_geo.vertices.push(p);
+				ph_geo.points.push(p);
+			}
 		}
 	}
 }
