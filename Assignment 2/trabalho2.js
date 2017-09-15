@@ -62,6 +62,11 @@ function init() {
 		mouseIsPressed = false; 
 		if (typeof mouseReleased !== 'undefined') mouseReleased(); 
 	});
+	renderer.domElement.addEventListener ( 'dblclick', function () { 
+		setMouse();
+		mouseIsPressed = true; 
+		if (typeof doubleClick !== 'undefined') doubleClick(); 
+	});
 
 	// If a setup function is defined, call it
 	if (typeof setup !== 'undefined') setup();
@@ -146,14 +151,25 @@ function mousePressed() {
 			var shape = new THREE.Shape(new_line.geometry.vertices);
 			var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
 			var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
-			var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff } );
+			var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
 			var mesh = new THREE.Mesh( geometry, material2 ) ;
+			scene.remove(new_line);
 			polygons.push(mesh);
 			scene.add( mesh );
 		} else {
 			// Adds the next point to the newborn polygon:
 			ph_geo.vertices.push(p);
 		}
+	}
+}
+
+function doubleClick() {
+	var origin = new THREE.Vector3(mouseX,mouseY,0);
+	var dir = new THREE.Vector3(0,1,0);
+	var raycaster = new THREE.Raycaster(origin, dir);
+	console.log("--------");
+	for (var i=0; i<polygons.length; i++){
+		console.log(raycaster.intersectObject(polygons[i]));
 	}
 }
 
