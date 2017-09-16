@@ -129,15 +129,18 @@ function setup () {
 
 
 function mousePressed() {
-	if (click_timer <= time_to_wait){
-		edit_mode["mode"] = -1;
-		ph_geo = new THREE.Geometry();
-		scene.remove(new_line);	
-	}
-	if (click_timer > time_to_wait){
+	if ((click_timer <= time_to_wait) && (edit_mode["mode"] == -1)){
+		return;
+	} else {
 		click_timer = 0;
+		// Checks if a polygon was hit by the mouse:
+		var polygon_hit = -1;
+		for (var k=polygons.length-1; k>=0; k--){
+			if (polygon_hit == -1 && inside([mouseX,mouseY], polygons[k])) polygon_hit = k;
+		}
+		
 		// If no objects are being edited at the moment:
-		if (edit_mode["mode"] == -1){
+		if ((edit_mode["mode"] == -1) && (polygon_hit == -1)){
 			// States the creation of the new polygon:
 			edit_mode["mode"] = "create_new";
 			// Creates a new line to start drawing the polygon:
@@ -184,6 +187,11 @@ function mousePressed() {
 				ph_geo.vertices.push(p);
 				ph_geo.points.push(p);
 			}
+		} else if (polygon_hit != -1){
+			console.log("We're gonna need a bigger boat");
+			edit_mode["mode"] = "translate";
+			edit_mode["poly"] = polygon_hit;
+			edit_mode["points"] = [mouseX, mouseY];
 		}
 	}
 }
@@ -192,21 +200,14 @@ function doubleClick() {
 	var collided = [];
 	// Checks for collision with every polygon:
 	for (var i=polygons.length-1; i>=0; i--){
-		var polygon_points = new Array(polygons[i].geometry.points.length);
-		// Builds an array containing lists of the points that define the polygon:
-		for (var j=0; j<polygons[i].geometry.points.length; j++){
-			polygon_points[j] = new Array(2);
-			polygon_points[j][0] = ( polygons[i].geometry.points[j].x );
-			polygon_points[j][1] = ( polygons[i].geometry.points[j].y );
-		}
+		
 		// Checks for collision:
-		if ( inside([mouseX, mouseY], polygon_points) ){
+		if ( inside([mouseX, mouseY], polygons[i]) ){
 			
 			// Adds polygon to the list of collisions:
 			if (collided.length < 2) collided.push(i);
 			
 		}
-		var polygon_points = [];
 	}
 
 	// Checks if more than one polygon collided:
@@ -232,12 +233,35 @@ function doubleClick() {
 }
 
 function mouseDragged() {
+	// Checks to see if a polygon is being dragged:
+	if (edit_mode["mode"] == "translate"){
+		var x = edit_mode["points"][0];
+		var y = edit_mode["points"][1];
+		var i_poly = edit_mode["poly"];
+		
+		polygons[i_poly].position.x = mouseX-x;
+		polygons[i_poly].position.y = mouseY-y;
+		
+		console.log(polygons[i_poly].position);
+	}
 }
 
 function mouseReleased() {
+	if (edit_mode["mode"] == "translate"){
+		edit_mode["mode"] = -1;
+	}
 }
 
-function inside(point, vs) {
+function inside(point, poly) {
+	
+	var vs = new Array(poly.geometry.points.length);
+	// Builds an array containing lists of the points that define the polygon:
+	for (var j=0; j<poly.geometry.points.length; j++){
+		vs[j] = new Array(2);
+		vs[j][0] = ( poly.geometry.points[j].x );
+		vs[j][1] = ( poly.geometry.points[j].y );
+	}
+	
     // ray-casting algorithm based on
     // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
 
