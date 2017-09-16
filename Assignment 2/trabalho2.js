@@ -102,6 +102,8 @@ var ph_geo = new THREE.Geometry();				// Placeholder geometry for any operation
 var new_line;									// Current line being created
 var click_timer = 50;							// Time since last click
 var time_to_wait = 15;							// Time to identify a double click
+var z_count = 0;
+var z_rate = 10;
 
 //
 // The render callback
@@ -110,7 +112,7 @@ function render () {
 	if (click_timer < time_to_wait+10) click_timer += 1;
 	// If a new polygon is being created:
 	if (edit_mode["mode"] == "create_new"){
-		var p = new THREE.Vector3 (mouseX,mouseY,0);
+		var p = new THREE.Vector3 (mouseX,mouseY,z_count);
 		// Clones placeholder geometry to line geometry:
 		var geometry = ph_geo.clone();
 		geometry.vertices.push(p);
@@ -141,7 +143,7 @@ function mousePressed() {
 			// Creates a new line to start drawing the polygon:
 			var geometry = new THREE.Geometry();
 			ph_geo.points = [];
-			var p = new THREE.Vector3 (mouseX,mouseY,0);
+			var p = new THREE.Vector3 (mouseX,mouseY,z_count);
 			ph_geo.vertices.push(p);
 			geometry.vertices.push (p);
 			ph_geo.points.push(p);
@@ -151,8 +153,10 @@ function mousePressed() {
 			scene.add(line);
 		// If a polygon is being created at the moment:
 		} else if (edit_mode["mode"] == "create_new"){
-			var p = new THREE.Vector3 (mouseX,mouseY,0);
+			var p = new THREE.Vector3 (mouseX,mouseY,z_count);
 			// Checks to see if polygon should be closed:
+			console.log(p);
+			console.log(ph_geo.vertices[0]);
 			if ((p.distanceTo(ph_geo.vertices[0]) < default_dist) && (ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
 				// Adds the geometry to the line and finishes the editing process:
 				ph_geo.vertices.push(ph_geo.vertices[0]);
@@ -163,6 +167,11 @@ function mousePressed() {
 				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
 				var mesh = new THREE.Mesh( geometry, material2 ) ;
+				// Applies transformation to bring z to front:
+				var m = new THREE.Matrix4();
+				m.makeTranslation(0, 0, z_count);
+				mesh.geometry.applyMatrix(m);
+				
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
 				scene.remove(new_line);
@@ -170,6 +179,7 @@ function mousePressed() {
 				scene.add( mesh );
 				ph_geo = new THREE.Geometry();
 				edit_mode["mode"] = -1;
+				z_count += z_rate;
 			} else if  ((ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
 				// Adds the next point to the newborn polygon:
 				ph_geo.vertices.push(p);
@@ -191,7 +201,20 @@ function doubleClick() {
 		}
 		// Checks for collision:
 		if ( inside([mouseX, mouseY], polygon_points) ){
-			console.log("Collision with polygon "+i);
+			// Adds a pinpoint:
+			var m = new THREE.Matrix4();
+			m.makeTranslation(mouseX, mouseY, z_count);
+			z_count += z_rate;
+			var geometry_inner = new THREE.SphereGeometry(7);
+			var geometry_outer = new THREE.SphereGeometry(9);
+			var material_inner = new THREE.MeshBasicMaterial( {color: 0x876a3a} );
+			var material_outer = new THREE.MeshBasicMaterial( {color: 0x000000} );
+			var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
+			var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
+			sphere_inner.geometry.applyMatrix(m);
+			sphere_outer.geometry.applyMatrix(m);
+			scene.add( sphere_inner );
+			scene.add( sphere_outer );
 		}
 		var polygon_points = [];
 	}
