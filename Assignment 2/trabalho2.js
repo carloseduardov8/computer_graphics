@@ -101,7 +101,7 @@ var polygons = [];								// Array of existing polygons
 var ph_geo = new THREE.Geometry();				// Placeholder geometry for any operation
 var new_line;									// Current line being created
 var click_timer = 50;							// Time since last click
-var time_to_wait = 15;							// Time to identify a double click
+var time_to_wait = 20;							// Time to identify a double click
 var z_count = 0;
 var z_rate = 3;
 
@@ -220,7 +220,7 @@ function doubleClick() {
 			polygons[i_back].father = i_front;
 			addPinpoint(mouseX, mouseY);
 		// Checks if polygon on the front has a father:
-		} else if ((polygons[i_front].father == undefined) && (polygons[i_back].father != i_front)){
+		} else if ((polygons[i_front].father == undefined) && (checkParentLoop(polygons[i_back], i_front))){
 			// Polygon on the back becomes father of polygon on the front:
 			polygons[i_back].add(polygons[i_front]);
 			polygons[i_front].father = i_back;
@@ -277,6 +277,22 @@ function addPinpoint(mouseX, mouseY){
 	scene.add( sphere_pin );
 }
 
-
+function checkParentLoop(poly, i_test){
+	var temp = poly;
+	var count_loop = 0;
+	while (temp != undefined){
+		if (temp == i_test){
+			return false;
+		} else {
+			temp = poly.father;
+			console.log("hey");
+		}
+		count_loop++;
+		if (count_loop > 80){
+			return false;
+		}
+	}
+	return true;
+}
 
 init();
