@@ -145,7 +145,7 @@ function mousePressed() {
 			ph_geo.points = [];
 			var p = new THREE.Vector3 (mouseX,mouseY,z_count);
 			ph_geo.vertices.push(p);
-			geometry.vertices.push (p);
+			geometry.vertices.push (p);	
 			ph_geo.points.push(p);
 			var line = new THREE.Line (geometry, material);
 			// Adds created line to the scene:
@@ -155,8 +155,6 @@ function mousePressed() {
 		} else if (edit_mode["mode"] == "create_new"){
 			var p = new THREE.Vector3 (mouseX,mouseY,z_count);
 			// Checks to see if polygon should be closed:
-			console.log(p);
-			console.log(ph_geo.vertices[0]);
 			if ((p.distanceTo(ph_geo.vertices[0]) < default_dist) && (ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
 				// Adds the geometry to the line and finishes the editing process:
 				ph_geo.vertices.push(ph_geo.vertices[0]);
@@ -166,7 +164,9 @@ function mousePressed() {
 				var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
 				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
-				var mesh = new THREE.Mesh( geometry, material2 ) ;
+				var mesh = new THREE.Mesh( geometry, material2 );
+				mesh.hasFather = false;
+				
 				// Applies transformation to bring z to front:
 				var m = new THREE.Matrix4();
 				m.makeTranslation(0, 0, z_count);
@@ -190,8 +190,9 @@ function mousePressed() {
 }
 
 function doubleClick() {
+	var collided = [];
 	// Checks for collision with every polygon:
-	for (var i=0; i<polygons.length; i++){
+	for (var i=polygons.length-1; i>=0; i--){
 		var polygon_points = new Array(polygons[i].geometry.points.length);
 		// Builds an array containing lists of the points that define the polygon:
 		for (var j=0; j<polygons[i].geometry.points.length; j++){
@@ -215,8 +216,39 @@ function doubleClick() {
 			sphere_outer.geometry.applyMatrix(m);
 			scene.add( sphere_inner );
 			scene.add( sphere_outer );
+			
+			// Adds polygon to the list of collisions:
+			if (collided.length < 2) collided.push(i);
+			
 		}
 		var polygon_points = [];
+	}
+
+	// Checks if more than one polygon collided:
+	if (collided.length == 2){
+		var i_front = collided[0];
+		var i_back = collided[1];
+		// Checks if polygon on the back has a father:
+		if (polygons[i_back].hasFather == false){
+			// Polygon on the front becomes its father:
+			polygons[i_front].add(polygons[i_back]);
+			polygons[i_back].hasFather = true;
+		// Checks if polygon on the front has a father:
+		} else if (polygons[i_front].hasFather == false){
+			// Polygon on the back becomes father of polygon on the front:
+			polygons[i_back].add(polygons[i_front]);
+			polygons[i_front].hasFather = true;
+			// Switch polygons depth:
+			z_back = polygons[i_back].geometry.vertices[0].z;
+			z_front = polygons[i_front].geometry.vertices[0].z;
+			z_diff = z_front - z_back;
+			// Applies transformation to switch positions:
+			var m = new THREE.Matrix4();
+			m.makeTranslation(0, 0, z_diff);
+			polygons[i_back].geometry.applyMatrix(m);
+			m.makeTranslation(0, 0, -z_diff);
+			polygons[i_front].geometry.applyMatrix(m);
+		}
 	}
 }
 
