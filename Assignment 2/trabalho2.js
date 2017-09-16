@@ -103,7 +103,7 @@ var new_line;									// Current line being created
 var click_timer = 50;							// Time since last click
 var time_to_wait = 15;							// Time to identify a double click
 var z_count = 0;
-var z_rate = 10;
+var z_rate = 3;
 
 //
 // The render callback
@@ -163,9 +163,8 @@ function mousePressed() {
 				var shape = new THREE.Shape(new_line.geometry.vertices);
 				var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
 				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
-				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true, } );
+				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true } );
 				var mesh = new THREE.Mesh( geometry, material2 );
-				mesh.hasFather = false;
 				
 				// Applies transformation to bring z to front:
 				var m = new THREE.Matrix4();
@@ -202,20 +201,6 @@ function doubleClick() {
 		}
 		// Checks for collision:
 		if ( inside([mouseX, mouseY], polygon_points) ){
-			// Adds a pinpoint:
-			var m = new THREE.Matrix4();
-			m.makeTranslation(mouseX, mouseY, z_count);
-			z_count += z_rate;
-			var geometry_inner = new THREE.SphereGeometry(7);
-			var geometry_outer = new THREE.SphereGeometry(9);
-			var material_inner = new THREE.MeshBasicMaterial( {color: 0x876a3a} );
-			var material_outer = new THREE.MeshBasicMaterial( {color: 0x000000} );
-			var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
-			var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
-			sphere_inner.geometry.applyMatrix(m);
-			sphere_outer.geometry.applyMatrix(m);
-			scene.add( sphere_inner );
-			scene.add( sphere_outer );
 			
 			// Adds polygon to the list of collisions:
 			if (collided.length < 2) collided.push(i);
@@ -229,26 +214,20 @@ function doubleClick() {
 		var i_front = collided[0];
 		var i_back = collided[1];
 		// Checks if polygon on the back has a father:
-		if (polygons[i_back].hasFather == false){
+		if (polygons[i_back].father == undefined){
 			// Polygon on the front becomes its father:
 			polygons[i_front].add(polygons[i_back]);
-			polygons[i_back].hasFather = true;
+			polygons[i_back].father = i_front;
+			addPinpoint(mouseX, mouseY);
 		// Checks if polygon on the front has a father:
-		} else if (polygons[i_front].hasFather == false){
+		} else if ((polygons[i_front].father == undefined) && (polygons[i_back].father != i_front)){
 			// Polygon on the back becomes father of polygon on the front:
 			polygons[i_back].add(polygons[i_front]);
-			polygons[i_front].hasFather = true;
-			// Switch polygons depth:
-			z_back = polygons[i_back].geometry.vertices[0].z;
-			z_front = polygons[i_front].geometry.vertices[0].z;
-			z_diff = z_front - z_back;
-			// Applies transformation to switch positions:
-			var m = new THREE.Matrix4();
-			m.makeTranslation(0, 0, z_diff);
-			polygons[i_back].geometry.applyMatrix(m);
-			m.makeTranslation(0, 0, -z_diff);
-			polygons[i_front].geometry.applyMatrix(m);
+			polygons[i_front].father = i_back;
+			addPinpoint(mouseX, mouseY);
 		}
+		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].father);
+		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].father);
 	}
 }
 
@@ -276,5 +255,28 @@ function inside(point, vs) {
 
     return inside;
 };
+
+function addPinpoint(mouseX, mouseY){
+	// Adds a pinpoint:
+	var m = new THREE.Matrix4();
+	m.makeTranslation(mouseX, mouseY, z_count*10);
+	z_count += z_rate;
+	var geometry_pin = new THREE.SphereGeometry(2);
+	var geometry_inner = new THREE.SphereGeometry(7);
+	var geometry_outer = new THREE.SphereGeometry(9);
+	var material_inner = new THREE.MeshBasicMaterial( {color: 0x876a3a} );
+	var material_outer = new THREE.MeshBasicMaterial( {color: 0x000000} );
+	var sphere_pin = new THREE.Mesh( geometry_pin, material_outer );
+	var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
+	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
+	sphere_pin.geometry.applyMatrix(m);
+	sphere_inner.geometry.applyMatrix(m);
+	sphere_outer.geometry.applyMatrix(m);
+	scene.add( sphere_inner );
+	scene.add( sphere_outer );
+	scene.add( sphere_pin );
+}
+
+
 
 init();
