@@ -102,8 +102,6 @@ var ph_geo = new THREE.Geometry();				// Placeholder geometry for any operation
 var new_line;									// Current line being created
 var click_timer = 50;							// Time since last click
 var time_to_wait = 20;							// Time to identify a double click
-var z_count = 0;
-var z_rate = 3;
 
 //
 // The render callback
@@ -112,7 +110,7 @@ function render () {
 	if (click_timer < time_to_wait+10) click_timer += 1;
 	// If a new polygon is being created:
 	if (edit_mode["mode"] == "create_new"){
-		var p = new THREE.Vector3 (mouseX,mouseY,z_count);
+		var p = new THREE.Vector3 (mouseX,mouseY,0);
 		// Clones placeholder geometry to line geometry:
 		var geometry = ph_geo.clone();
 		geometry.vertices.push(p);
@@ -146,7 +144,7 @@ function mousePressed() {
 			// Creates a new line to start drawing the polygon:
 			var geometry = new THREE.Geometry();
 			ph_geo.points = [];
-			var p = new THREE.Vector3 (mouseX,mouseY,z_count);
+			var p = new THREE.Vector3 (mouseX,mouseY,0);
 			ph_geo.vertices.push(p);
 			geometry.vertices.push (p);	
 			ph_geo.points.push(p);
@@ -156,7 +154,7 @@ function mousePressed() {
 			scene.add(line);
 		// If a polygon is being created at the moment:
 		} else if (edit_mode["mode"] == "create_new"){
-			var p = new THREE.Vector3 (mouseX,mouseY,z_count);
+			var p = new THREE.Vector3 (mouseX,mouseY,0);
 			// Checks to see if polygon should be closed:
 			if ((p.distanceTo(ph_geo.vertices[0]) < default_dist) && (ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
 				// Adds the geometry to the line and finishes the editing process:
@@ -164,15 +162,10 @@ function mousePressed() {
 				new_line.geometry = ph_geo;
 				// Creates the resulting polygon and adds it to the scene:
 				var shape = new THREE.Shape(new_line.geometry.vertices);
-				var extrudeSettings = { amount: 8, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
+				var extrudeSettings = { amount: 8, bevelEnabled: false, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
 				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true } );
 				var mesh = new THREE.Mesh( geometry, material2 );
-				
-				// Applies transformation to bring z to front:
-				var m = new THREE.Matrix4();
-				m.makeTranslation(0, 0, z_count);
-				mesh.geometry.applyMatrix(m);
 				
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
@@ -181,7 +174,6 @@ function mousePressed() {
 				scene.add( mesh );
 				ph_geo = new THREE.Geometry();
 				edit_mode["mode"] = -1;
-				z_count += z_rate;
 			} else if  ((ph_geo.vertices[ph_geo.vertices.length-1].x != p.x) && (ph_geo.vertices[ph_geo.vertices.length-1].y != p.y)){
 				// Adds the next point to the newborn polygon:
 				ph_geo.vertices.push(p);
@@ -191,7 +183,8 @@ function mousePressed() {
 			console.log("We're gonna need a bigger boat");
 			edit_mode["mode"] = "translate";
 			edit_mode["poly"] = polygon_hit;
-			edit_mode["points"] = [mouseX, mouseY];
+			edit_mode["points"] = [polygons[polygon_hit].matrix.elements[12], polygons[polygon_hit].matrix.elements[13], mouseX, mouseY];
+			console.log(polygons[polygon_hit].matrix.elements[12], polygons[polygon_hit].matrix.elements[13]);
 		}
 	}
 }
@@ -219,13 +212,15 @@ function doubleClick() {
 			// Polygon on the front becomes its father:
 			polygons[i_front].add(polygons[i_back]);
 			polygons[i_back].father = i_front;
-			addPinpoint(mouseX, mouseY);
+			// Creates a pinpoint and adds it as a child:
+			polygons[i_front].add( addPinpoint(mouseX, mouseY) );
 		// Checks if polygon on the front has a father:
 		} else if ((polygons[i_front].father == undefined) && (checkParentLoop(polygons[i_back], i_front))){
 			// Polygon on the back becomes father of polygon on the front:
 			polygons[i_back].add(polygons[i_front]);
 			polygons[i_front].father = i_back;
-			addPinpoint(mouseX, mouseY);
+			// Creates a pinpoint and adds it as a child:
+			polygons[i_back].add( addPinpoint(mouseX, mouseY) );
 		}
 		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].father);
 		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].father);
@@ -235,14 +230,14 @@ function doubleClick() {
 function mouseDragged() {
 	// Checks to see if a polygon is being dragged:
 	if (edit_mode["mode"] == "translate"){
-		var x = edit_mode["points"][0];
-		var y = edit_mode["points"][1];
+		var org_x = edit_mode["points"][0];
+		var org_y = edit_mode["points"][1];
+		var org_mouse_x = edit_mode["points"][2];
+		var org_mouse_y = edit_mode["points"][3];
 		var i_poly = edit_mode["poly"];
 		
-		polygons[i_poly].position.x = mouseX-x;
-		polygons[i_poly].position.y = mouseY-y;
-		
-		console.log(polygons[i_poly].position);
+		polygons[i_poly].position.copy(new THREE.Vector3 (mouseX - org_mouse_x + org_x, mouseY - org_mouse_y + org_y, 0));
+			
 	}
 }
 
@@ -258,8 +253,9 @@ function inside(point, poly) {
 	// Builds an array containing lists of the points that define the polygon:
 	for (var j=0; j<poly.geometry.points.length; j++){
 		vs[j] = new Array(2);
-		vs[j][0] = ( poly.geometry.points[j].x );
-		vs[j][1] = ( poly.geometry.points[j].y );
+		// Retrieves coordinates of points taking into account the matrix transformations:
+		vs[j][0] = ( poly.geometry.points[j].x + poly.matrix.elements[12]);
+		vs[j][1] = ( poly.geometry.points[j].y + poly.matrix.elements[13]);
 	}
 	
     // ray-casting algorithm based on
@@ -283,8 +279,7 @@ function inside(point, poly) {
 function addPinpoint(mouseX, mouseY){
 	// Adds a pinpoint:
 	var m = new THREE.Matrix4();
-	m.makeTranslation(mouseX, mouseY, z_count*10);
-	z_count += z_rate;
+	m.makeTranslation(mouseX, mouseY, 5);
 	var geometry_pin = new THREE.SphereGeometry(2);
 	var geometry_inner = new THREE.SphereGeometry(7);
 	var geometry_outer = new THREE.SphereGeometry(9);
@@ -293,12 +288,20 @@ function addPinpoint(mouseX, mouseY){
 	var sphere_pin = new THREE.Mesh( geometry_pin, material_outer );
 	var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
-	sphere_pin.geometry.applyMatrix(m);
-	sphere_inner.geometry.applyMatrix(m);
-	sphere_outer.geometry.applyMatrix(m);
-	scene.add( sphere_inner );
-	scene.add( sphere_outer );
-	scene.add( sphere_pin );
+	
+	// Creates a sphere out of these parts:
+	sphere = new THREE.Group();
+	sphere.add( sphere_inner );
+	sphere.add( sphere_outer );
+	sphere.add( sphere_pin );
+	
+	// Sets the spheres position:
+	sphere.position.copy(new THREE.Vector3(mouseX, mouseY, 5));
+	
+	// Adds the sphere to the scene and returns it:
+	scene.add( sphere );
+	
+	return sphere;
 }
 
 function checkParentLoop(poly, i_test){
