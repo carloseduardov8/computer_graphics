@@ -272,10 +272,10 @@ function mouseDragged() {
 		var rotateEnd = new THREE.Vector3( mouseX - pinpoint_x, mouseY - pinpoint_y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
 		
-		
-		//mesh.geometry.translate(-pinpoint_x, -pinpoint_y, 0);
-		rotateAroundObjectAxis(mesh, axis, 0.01);
-		//mesh.geometry.translate(pinpoint_x, pinpoint_y, 0);
+		// Applies the rotation:
+		var quaternion = new THREE.Quaternion();
+		quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle );
+		mesh.quaternion.copy(quaternion);
 	}
 }
 
