@@ -166,7 +166,7 @@ function mousePressed() {
 				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true } );
 				var mesh = new THREE.Mesh( geometry, material2 );
-				
+				mesh.pinpoint_xy = [0, 0];
 				mesh.childs = [];
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
@@ -220,6 +220,12 @@ function doubleClick() {
 			polygons[i_back].pinpoint_xy = [mouseX, mouseY];
 			// Creates a pinpoint and adds it as a child:
 			polygons[i_front].childs.push( addPinpoint(mouseX, mouseY) );
+			
+			console.log(polygons[i_back].geometry.vertices);
+			polygons[i_back].geometry.translate(-mouseX, -mouseY, 0);
+			polygons[i_back].position.copy( new THREE.Vector3(mouseX, mouseY, 0));
+			polygons[i_back].geometry.verticesNeedUpdate = true;
+			console.log(polygons[i_back].geometry.vertices);
 		// Checks if polygon on the front has a father:
 		} else if ((polygons[i_front].father == undefined) && (checkParentLoop(i_back, i_front))){
 			// Polygon on the back becomes father of polygon on the front:
@@ -258,29 +264,38 @@ function mouseDragged() {
 		var pinpoint_y = polygons[i_poly].pinpoint_xy[1] + polygons[i_poly].matrix.elements[13];;
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
-		
+		var mesh = polygons[i_poly];
+		var axis = new THREE.Vector3(0, 0, 1);
 		
 		// Calculates the angle of the rotation:
 		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint_x, org_mouse_y - pinpoint_y, 0);
 		var rotateEnd = new THREE.Vector3( mouseX - pinpoint_x, mouseY - pinpoint_y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
 		
-		// Brings polygon to origin:
-		var ph_pos = polygons[i_poly].position.clone();
-		polygons[i_poly].position.copy( new THREE.Vector3(0, 0, 0) );
 		
-		// Applies the rotation:
-		var quaternion = new THREE.Quaternion();
-		quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle );
-		polygons[i_poly].quaternion.copy(quaternion);
-		
-		// Brings polygon back:
-		polygons[i_poly].position.copy( ph_pos );
-		
-		//edit_mode["points"][0] = mouseX;
-		//edit_mode["points"][1] = mouseY;
+		//mesh.geometry.translate(-pinpoint_x, -pinpoint_y, 0);
+		rotateAroundObjectAxis(mesh, axis, 0.01);
+		//mesh.geometry.translate(pinpoint_x, pinpoint_y, 0);
 	}
 }
+
+function rotateAroundObjectAxis(object, axis, radians) {
+    rotObjectMatrix = new THREE.Matrix4();
+    rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
+
+    // old code for Three.JS pre r54:
+    // object.matrix.multiplySelf(rotObjectMatrix);      // post-multiply
+    // new code for Three.JS r55+:
+    object.matrix.multiply(rotObjectMatrix);
+
+    // old code for Three.js pre r49:
+    // object.rotation.getRotationFromMatrix(object.matrix, object.scale);
+    // old code for Three.js r50-r58:
+    // object.rotation.setEulerFromRotationMatrix(object.matrix);
+    // new code for Three.js r59+:
+    object.rotation.setFromRotationMatrix(object.matrix);
+}
+
 
 function mouseReleased() {
 	if ((edit_mode["mode"] == "translate") || (edit_mode["mode"] == "rotate")){
@@ -295,8 +310,8 @@ function inside(point, poly) {
 	for (var j=0; j<poly.geometry.points.length; j++){
 		vs[j] = new Array(2);
 		// Retrieves coordinates of points taking into account the matrix transformations:
-		vs[j][0] = ( poly.geometry.points[j].x + poly.matrix.elements[12]);
-		vs[j][1] = ( poly.geometry.points[j].y + poly.matrix.elements[13]);
+		vs[j][0] = ( poly.geometry.points[j].x + poly.matrix.elements[12] - poly.pinpoint_xy[0]);
+		vs[j][1] = ( poly.geometry.points[j].y + poly.matrix.elements[13] - poly.pinpoint_xy[1]);
 	}
 	
     // ray-casting algorithm based on
