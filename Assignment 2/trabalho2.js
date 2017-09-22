@@ -184,7 +184,7 @@ function mousePressed() {
 			if (polygons[ polygon_hit ].father == undefined){
 				edit_mode["mode"] = "translate";
 				edit_mode["poly"] = polygon_hit;
-				edit_mode["points"] = [polygons[polygon_hit].matrix.elements[12], polygons[polygon_hit].matrix.elements[13], mouseX, mouseY];
+				edit_mode["points"] = [mouseX, mouseY];
 			}
 		}
 	}
@@ -232,24 +232,16 @@ function mouseDragged() {
 	// Checks to see if a polygon is being dragged:
 	if (edit_mode["mode"] == "translate"){
 		var i_poly = edit_mode["poly"];
-		var org_x = polygons[i_poly].matrix.elements[12];
-		var org_y = polygons[i_poly].matrix.elements[13];
-		var org_mouse_x = edit_mode["points"][2];
-		var org_mouse_y = edit_mode["points"][3];
+		var org_mouse_x = edit_mode["points"][0];
+		var org_mouse_y = edit_mode["points"][1];
 		
 		var dist_x = mouseX - org_mouse_x;
 		var dist_y = mouseY - org_mouse_y;
 		
-		
-		polygons[i_poly].position.copy(new THREE.Vector3 (polygons[i_poly].matrix.elements[12] + dist_x, polygons[i_poly].matrix.elements[13] + dist_y, 0));
-		for (let child of polygons[i_poly].childs){
-			applyVectorToChilds(child, mouseX - org_mouse_x + org_x, mouseY - org_mouse_y + org_y, child.matrix.elements[14]);
-		}
-		
 		applyVectorToChilds(polygons[i_poly], dist_x, dist_y, 0);
 		
-		edit_mode["points"][2] += dist_x;
-		edit_mode["points"][3] += dist_y;
+		edit_mode["points"][0] += dist_x;
+		edit_mode["points"][1] += dist_y;
 			
 	}
 }
