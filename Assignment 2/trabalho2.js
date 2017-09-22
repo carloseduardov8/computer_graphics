@@ -185,6 +185,10 @@ function mousePressed() {
 				edit_mode["mode"] = "translate";
 				edit_mode["poly"] = polygon_hit;
 				edit_mode["points"] = [mouseX, mouseY];
+			} else {
+				edit_mode["mode"] = "rotate";
+				edit_mode["poly"] = polygon_hit;
+				edit_mode["points"] = [mouseX, mouseY];
 			}
 		}
 	}
@@ -213,6 +217,7 @@ function doubleClick() {
 			// Polygon on the front becomes its father:
 			polygons[i_front].childs.push(polygons[i_back]);
 			polygons[i_back].father = i_front;
+			polygons[i_back].pinpoint_xy = [mouseX, mouseY];
 			// Creates a pinpoint and adds it as a child:
 			polygons[i_front].childs.push( addPinpoint(mouseX, mouseY) );
 		// Checks if polygon on the front has a father:
@@ -220,6 +225,7 @@ function doubleClick() {
 			// Polygon on the back becomes father of polygon on the front:
 			polygons[i_back].childs.push(polygons[i_front]);
 			polygons[i_front].father = i_back;
+			polygons[i_front].pinpoint_xy = [mouseX, mouseY];
 			// Creates a pinpoint and adds it as a child:
 			polygons[i_back].childs.push( addPinpoint(mouseX, mouseY) );
 		}
@@ -235,19 +241,42 @@ function mouseDragged() {
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
 		
+		// Calculates the distance to translate:
 		var dist_x = mouseX - org_mouse_x;
 		var dist_y = mouseY - org_mouse_y;
 		
+		// Applies the translation:
 		applyVectorToChilds(polygons[i_poly], dist_x, dist_y, 0);
 		
 		edit_mode["points"][0] += dist_x;
 		edit_mode["points"][1] += dist_y;
 			
+	} else if (edit_mode["mode"] == "rotate"){
+		
+		var i_poly = edit_mode["poly"];
+		var pinpoint_x = polygons[i_poly].pinpoint_xy[0];
+		var pinpoint_y = polygons[i_poly].pinpoint_xy[1];
+		var org_mouse_x = edit_mode["points"][0];
+		var org_mouse_y = edit_mode["points"][1];
+		
+		
+		// Calculates the angle of the rotation:
+		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint_x, org_mouse_y - pinpoint_y, 0);
+		var rotateEnd = new THREE.Vector3( mouseX - pinpoint_x, mouseY - pinpoint_y, 0);
+		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
+		
+		// Applies the rotation:
+		var quaternion = new THREE.Quaternion();
+		quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle );
+		polygons[i_poly].quaternion.copy(quaternion);
+		
+		//edit_mode["points"][0] = mouseX;
+		//edit_mode["points"][1] = mouseY;
 	}
 }
 
 function mouseReleased() {
-	if (edit_mode["mode"] == "translate"){
+	if ((edit_mode["mode"] == "translate") || (edit_mode["mode"] == "rotate")){
 		edit_mode["mode"] = -1;
 	}
 }
