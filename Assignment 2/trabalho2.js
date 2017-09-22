@@ -254,8 +254,8 @@ function mouseDragged() {
 	} else if (edit_mode["mode"] == "rotate"){
 		
 		var i_poly = edit_mode["poly"];
-		var pinpoint_x = polygons[i_poly].pinpoint_xy[0];
-		var pinpoint_y = polygons[i_poly].pinpoint_xy[1];
+		var pinpoint_x = polygons[i_poly].pinpoint_xy[0] + polygons[i_poly].matrix.elements[12];
+		var pinpoint_y = polygons[i_poly].pinpoint_xy[1] + polygons[i_poly].matrix.elements[13];;
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
 		
@@ -265,10 +265,17 @@ function mouseDragged() {
 		var rotateEnd = new THREE.Vector3( mouseX - pinpoint_x, mouseY - pinpoint_y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
 		
+		// Brings polygon to origin:
+		var ph_pos = polygons[i_poly].position.clone();
+		polygons[i_poly].position.copy( new THREE.Vector3(0, 0, 0) );
+		
 		// Applies the rotation:
 		var quaternion = new THREE.Quaternion();
 		quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle );
 		polygons[i_poly].quaternion.copy(quaternion);
+		
+		// Brings polygon back:
+		polygons[i_poly].position.copy( ph_pos );
 		
 		//edit_mode["points"][0] = mouseX;
 		//edit_mode["points"][1] = mouseY;
