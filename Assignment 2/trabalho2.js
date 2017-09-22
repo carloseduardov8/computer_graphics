@@ -266,23 +266,6 @@ function mouseDragged() {
 	}
 }
 
-function rotateAroundObjectAxis(object, axis, radians) {
-    rotObjectMatrix = new THREE.Matrix4();
-    rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
-
-    // old code for Three.JS pre r54:
-    // object.matrix.multiplySelf(rotObjectMatrix);      // post-multiply
-    // new code for Three.JS r55+:
-    object.matrix.multiply(rotObjectMatrix);
-
-    // old code for Three.js pre r49:
-    // object.rotation.getRotationFromMatrix(object.matrix, object.scale);
-    // old code for Three.js r50-r58:
-    // object.rotation.setEulerFromRotationMatrix(object.matrix);
-    // new code for Three.js r59+:
-    object.rotation.setFromRotationMatrix(object.matrix);
-}
-
 
 function mouseReleased() {
 	if ((edit_mode["mode"] == "translate") || (edit_mode["mode"] == "rotate")){
@@ -305,7 +288,7 @@ function inside(point, poly) {
 		vs[j][1] = ( vec4.y );
 	}
 	
-    // ray-casting algorithm based on
+    // Ray-casting algorithm based on
     // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
 
     var x = point[0], y = point[1];
@@ -326,8 +309,6 @@ function inside(point, poly) {
 // Function to add a pinpoint to a given point:
 function addPinpoint(mouseX, mouseY){
 	// Adds a pinpoint:
-	var m = new THREE.Matrix4();
-	m.makeTranslation(mouseX, mouseY, 10);
 	var geometry_pin = new THREE.SphereGeometry(2);
 	var geometry_inner = new THREE.SphereGeometry(7);
 	var geometry_outer = new THREE.SphereGeometry(9);
@@ -337,19 +318,15 @@ function addPinpoint(mouseX, mouseY){
 	var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
 	
-	// Sets the spheres position:
-	m = new THREE.Matrix4();
-	m.makeTranslation(mouseX, mouseY, 5);
-	sphere_pin.geometry.applyMatrix(m);
-	sphere_inner.geometry.applyMatrix(m);
-	sphere_outer.geometry.applyMatrix(m);
-	
 	// Creates a sphere out of these parts:
 	sphere = new THREE.Group();
 	sphere.add( sphere_inner );
 	sphere.add( sphere_outer );
 	sphere.add( sphere_pin );
 	sphere.childs = [];
+	
+	// Sets the spheres position:
+	sphere.position.copy(new THREE.Vector3(mouseX, mouseY, 5));
 	
 	// Adds the sphere to the scene and returns it:
 	scene.add( sphere );
@@ -388,8 +365,13 @@ function applyParenthood(i_father, i_son){
 	polygons[i_father].childs.push( addPinpoint(mouseX, mouseY) );
 	
 	// Recalculates the geometry position:
-	polygons[i_son].geometry.translate(-mouseX + polygons[i_son].matrix.elements[12], -mouseY + polygons[i_son].matrix.elements[13], 0);
-	polygons[i_son].position.copy( new THREE.Vector3(mouseX , mouseY , 0));
+	resetGeometry(polygons[i_son]);
+}
+
+// Function to put geometry in (0,0) while using matrix transform to compensate:
+function resetGeometry(poly){
+	poly.geometry.translate(-mouseX + poly.matrix.elements[12], -mouseY + poly.matrix.elements[13], 0);
+	poly.position.copy( new THREE.Vector3(mouseX , mouseY , 0));
 }
 
 
