@@ -167,6 +167,7 @@ function mousePressed() {
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true } );
 				var mesh = new THREE.Mesh( geometry, material2 );
 				
+				mesh.childs = [];
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
 				scene.remove(new_line);
@@ -180,11 +181,11 @@ function mousePressed() {
 				ph_geo.points.push(p);
 			}
 		} else if (polygon_hit != -1){
-			console.log("We're gonna need a bigger boat");
-			edit_mode["mode"] = "translate";
-			edit_mode["poly"] = polygon_hit;
-			edit_mode["points"] = [polygons[polygon_hit].matrix.elements[12], polygons[polygon_hit].matrix.elements[13], mouseX, mouseY];
-			console.log(polygons[polygon_hit].matrix.elements[12], polygons[polygon_hit].matrix.elements[13]);
+			if (polygons[ polygon_hit ].father == undefined){
+				edit_mode["mode"] = "translate";
+				edit_mode["poly"] = polygon_hit;
+				edit_mode["points"] = [polygons[polygon_hit].matrix.elements[12], polygons[polygon_hit].matrix.elements[13], mouseX, mouseY];
+			}
 		}
 	}
 }
@@ -210,17 +211,17 @@ function doubleClick() {
 		// Checks if polygon on the back has a father:
 		if (polygons[i_back].father == undefined){
 			// Polygon on the front becomes its father:
-			polygons[i_front].add(polygons[i_back]);
+			polygons[i_front].childs.push(polygons[i_back]);
 			polygons[i_back].father = i_front;
 			// Creates a pinpoint and adds it as a child:
-			polygons[i_front].add( addPinpoint(mouseX, mouseY) );
+			polygons[i_front].childs.push( addPinpoint(mouseX, mouseY) );
 		// Checks if polygon on the front has a father:
-		} else if ((polygons[i_front].father == undefined) && (checkParentLoop(polygons[i_back], i_front))){
+		} else if ((polygons[i_front].father == undefined) && (checkParentLoop(i_back, i_front))){
 			// Polygon on the back becomes father of polygon on the front:
-			polygons[i_back].add(polygons[i_front]);
+			polygons[i_back].childs.push(polygons[i_front]);
 			polygons[i_front].father = i_back;
 			// Creates a pinpoint and adds it as a child:
-			polygons[i_back].add( addPinpoint(mouseX, mouseY) );
+			polygons[i_back].childs.push( addPinpoint(mouseX, mouseY) );
 		}
 		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].father);
 		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].father);
@@ -230,13 +231,17 @@ function doubleClick() {
 function mouseDragged() {
 	// Checks to see if a polygon is being dragged:
 	if (edit_mode["mode"] == "translate"){
+		var i_poly = edit_mode["poly"];
 		var org_x = edit_mode["points"][0];
 		var org_y = edit_mode["points"][1];
 		var org_mouse_x = edit_mode["points"][2];
 		var org_mouse_y = edit_mode["points"][3];
-		var i_poly = edit_mode["poly"];
+		
 		
 		polygons[i_poly].position.copy(new THREE.Vector3 (mouseX - org_mouse_x + org_x, mouseY - org_mouse_y + org_y, 0));
+		for (let child of polygons[i_poly].childs){
+			applyVectorToChilds(child, mouseX - org_mouse_x + org_x, mouseY - org_mouse_y + org_y, child.matrix.elements[14]);
+		}
 			
 	}
 }
@@ -279,7 +284,7 @@ function inside(point, poly) {
 function addPinpoint(mouseX, mouseY){
 	// Adds a pinpoint:
 	var m = new THREE.Matrix4();
-	m.makeTranslation(mouseX, mouseY, 5);
+	m.makeTranslation(mouseX, mouseY, 10);
 	var geometry_pin = new THREE.SphereGeometry(2);
 	var geometry_inner = new THREE.SphereGeometry(7);
 	var geometry_outer = new THREE.SphereGeometry(9);
@@ -289,14 +294,19 @@ function addPinpoint(mouseX, mouseY){
 	var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
 	
+	// Sets the spheres position:
+	m = new THREE.Matrix4();
+	m.makeTranslation(mouseX, mouseY, 5);
+	sphere_pin.geometry.applyMatrix(m);
+	sphere_inner.geometry.applyMatrix(m);
+	sphere_outer.geometry.applyMatrix(m);
+	
 	// Creates a sphere out of these parts:
 	sphere = new THREE.Group();
 	sphere.add( sphere_inner );
 	sphere.add( sphere_outer );
 	sphere.add( sphere_pin );
-	
-	// Sets the spheres position:
-	sphere.position.copy(new THREE.Vector3(mouseX, mouseY, 5));
+	sphere.childs = [];
 	
 	// Adds the sphere to the scene and returns it:
 	scene.add( sphere );
@@ -304,14 +314,14 @@ function addPinpoint(mouseX, mouseY){
 	return sphere;
 }
 
-function checkParentLoop(poly, i_test){
-	var temp = poly;
+function checkParentLoop(i_poly, i_test){
+	var temp = i_poly;
 	var count_loop = 0;
 	while (temp != undefined){
 		if (temp == i_test){
 			return false;
 		} else {
-			temp = poly.father;
+			temp = polygons[temp].father;
 			console.log("hey");
 		}
 		count_loop++;
@@ -320,6 +330,15 @@ function checkParentLoop(poly, i_test){
 		}
 	}
 	return true;
+}
+
+function applyVectorToChilds(poly, x, y, z){
+	poly.position.copy(new THREE.Vector3 (x, y, z));
+	if (poly.childs.length > 0){
+		for (let child of poly.childs){
+			applyVectorToChilds(child, x, y, z);
+		}
+	}
 }
 
 init();
