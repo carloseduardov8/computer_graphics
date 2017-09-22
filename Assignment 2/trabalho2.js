@@ -232,16 +232,24 @@ function mouseDragged() {
 	// Checks to see if a polygon is being dragged:
 	if (edit_mode["mode"] == "translate"){
 		var i_poly = edit_mode["poly"];
-		var org_x = edit_mode["points"][0];
-		var org_y = edit_mode["points"][1];
+		var org_x = polygons[i_poly].matrix.elements[12];
+		var org_y = polygons[i_poly].matrix.elements[13];
 		var org_mouse_x = edit_mode["points"][2];
 		var org_mouse_y = edit_mode["points"][3];
 		
+		var dist_x = mouseX - org_mouse_x;
+		var dist_y = mouseY - org_mouse_y;
 		
-		polygons[i_poly].position.copy(new THREE.Vector3 (mouseX - org_mouse_x + org_x, mouseY - org_mouse_y + org_y, 0));
+		
+		polygons[i_poly].position.copy(new THREE.Vector3 (polygons[i_poly].matrix.elements[12] + dist_x, polygons[i_poly].matrix.elements[13] + dist_y, 0));
 		for (let child of polygons[i_poly].childs){
 			applyVectorToChilds(child, mouseX - org_mouse_x + org_x, mouseY - org_mouse_y + org_y, child.matrix.elements[14]);
 		}
+		
+		applyVectorToChilds(polygons[i_poly], dist_x, dist_y, 0);
+		
+		edit_mode["points"][2] += dist_x;
+		edit_mode["points"][3] += dist_y;
 			
 	}
 }
@@ -333,11 +341,9 @@ function checkParentLoop(i_poly, i_test){
 }
 
 function applyVectorToChilds(poly, x, y, z){
-	poly.position.copy(new THREE.Vector3 (x, y, z));
-	if (poly.childs.length > 0){
-		for (let child of poly.childs){
-			applyVectorToChilds(child, x, y, z);
-		}
+	poly.position.copy(new THREE.Vector3 (poly.matrix.elements[12] + x, poly.matrix.elements[13] + y, poly.matrix.elements[14] + z));
+	for (let child of poly.childs){
+		applyVectorToChilds(child, x, y, z);
 	}
 }
 
