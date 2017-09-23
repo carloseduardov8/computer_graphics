@@ -166,7 +166,7 @@ function mousePressed() {
 				var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true } );
 				var mesh = new THREE.Mesh( geometry, material2 );
-				mesh.pinpoint_xy = [0, 0];
+				mesh.pinpoint = new THREE.Vector2(0, 0);
 				mesh.childs = [];
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
@@ -189,6 +189,10 @@ function mousePressed() {
 				edit_mode["mode"] = "rotate";
 				edit_mode["poly"] = polygon_hit;
 				edit_mode["points"] = [mouseX, mouseY];
+				var poly = polygons[polygon_hit];
+				var pinpoint_x = poly.pinpoint.x + poly.matrix.elements[12];
+				var pinpoint_y = poly.pinpoint.y + poly.matrix.elements[13];
+				repositionGeometry(poly, new THREE.Vector2( pinpoint_x, pinpoint_y ))
 			}
 		}
 	}
@@ -249,8 +253,8 @@ function mouseDragged() {
 	} else if (edit_mode["mode"] == "rotate"){
 		
 		var i_poly = edit_mode["poly"];
-		var pinpoint_x = polygons[i_poly].pinpoint_xy[0] + polygons[i_poly].matrix.elements[12];
-		var pinpoint_y = polygons[i_poly].pinpoint_xy[1] + polygons[i_poly].matrix.elements[13];
+		var pinpoint_x = polygons[i_poly].pinpoint.x + polygons[i_poly].matrix.elements[12];
+		var pinpoint_y = polygons[i_poly].pinpoint.y + polygons[i_poly].matrix.elements[13];
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
 		var mesh = polygons[i_poly];
@@ -262,7 +266,7 @@ function mouseDragged() {
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
 		
 		// Applies the rotation:
-		applyRotationToChilds(mesh, signed_angle);
+		applyRotationToChilds( mesh, signed_angle );
 	}
 }
 
@@ -282,7 +286,7 @@ function inside(point, poly) {
 	for (var j=0; j<poly.geometry.points.length; j++){
 		vs[j] = new Array(2);
 		// Retrieves coordinates of points taking into account the matrix transformations:
-		vec4 = new THREE.Vector4(poly.geometry.points[j].x - poly.pinpoint_xy[0], poly.geometry.points[j].y - poly.pinpoint_xy[1], 0, 1);
+		vec4 = new THREE.Vector4(poly.geometry.points[j].x - poly.pinpoint.x, poly.geometry.points[j].y - poly.pinpoint.y, 0, 1);
 		vec4.applyMatrix4(poly.matrix);
 		vs[j][0] = ( vec4.x );
 		vs[j][1] = ( vec4.y );
@@ -309,29 +313,21 @@ function inside(point, poly) {
 // Function to add a pinpoint to a given point:
 function addPinpoint(mouseX, mouseY){
 	// Adds a pinpoint:
-	var geometry_pin = new THREE.SphereGeometry(2);
-	var geometry_inner = new THREE.SphereGeometry(7);
 	var geometry_outer = new THREE.SphereGeometry(9);
-	var material_inner = new THREE.MeshBasicMaterial( {color: 0x876a3a} );
-	var material_outer = new THREE.MeshBasicMaterial( {color: 0x000000} );
-	var sphere_pin = new THREE.Mesh( geometry_pin, material_outer );
-	var sphere_inner = new THREE.Mesh( geometry_inner, material_inner );
+	var material_outer = new THREE.MeshBasicMaterial( {color: 0xFFFFFF} );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
 	
-	// Creates a sphere out of these parts:
-	sphere = new THREE.Group();
-	sphere.add( sphere_inner );
-	sphere.add( sphere_outer );
-	sphere.add( sphere_pin );
-	sphere.childs = [];
+	
+	sphere_outer.childs = [];
+	sphere_outer.pinpoint = new THREE.Vector2(0,0,0);
 	
 	// Sets the spheres position:
-	sphere.position.copy(new THREE.Vector3(mouseX, mouseY, 5));
+	sphere_outer.position.copy(new THREE.Vector3(mouseX, mouseY, 5));
 	
 	// Adds the sphere to the scene and returns it:
-	scene.add( sphere );
+	scene.add( sphere_outer );
 	
-	return sphere;
+	return sphere_outer;
 }
 
 // Function to check if i_test is a relative of i_poly:
@@ -359,19 +355,29 @@ function applyParenthood(i_father, i_son){
 	// Polygon on the front becomes its father:
 	polygons[i_father].childs.push(polygons[i_son]);
 	polygons[i_son].father = i_father;
-	polygons[i_son].pinpoint_xy = [mouseX-polygons[i_son].matrix.elements[12], mouseY-polygons[i_son].matrix.elements[13]];
+	polygons[i_son].pinpoint.set( mouseX-polygons[i_son].matrix.elements[12], mouseY-polygons[i_son].matrix.elements[13] );
 	
 	// Creates a pinpoint and adds it as a child:
 	polygons[i_father].childs.push( addPinpoint(mouseX, mouseY) );
 	
 	// Recalculates the geometry position:
-	resetGeometry(polygons[i_son]);
+	resetGeometry(polygons[i_son], new THREE.Vector2(mouseX, mouseY));
 }
 
-// Function to put geometry in (0,0) while using matrix transform to compensate:
-function resetGeometry(poly){
-	poly.geometry.translate(-mouseX + poly.matrix.elements[12], -mouseY + poly.matrix.elements[13], 0);
-	poly.position.copy( new THREE.Vector3(mouseX , mouseY , 0));
+// Function to translate a geometry by a certain offset and then compensate the translation in the polygon matrix:
+function resetGeometry(poly, offset){
+	poly.geometry.translate(-offset.x + poly.matrix.elements[12], -offset.y + poly.matrix.elements[13], 0);
+	poly.position.copy( new THREE.Vector3(offset.x , offset.y , 0));
+}
+
+function repositionGeometry(poly, origin){
+	var offset = new THREE.Vector2( poly.pinpoint.x + poly.matrix.elements[12] - origin.x, poly.pinpoint.y + poly.matrix.elements[13] - origin.y);
+	console.log(offset);
+	poly.geometry.translate(offset.x, offset.y, 0);
+	poly.position.copy( new THREE.Vector3(-offset.x + poly.matrix.elements[12], -offset.y + poly.matrix.elements[13], 0));
+	for (let child of poly.childs){
+		repositionGeometry(child, origin);
+	}
 }
 
 
@@ -386,7 +392,7 @@ function applyTranslationToChilds(poly, x, y, z){
 // Function to propagate rotations to children of a node:
 function applyRotationToChilds(poly, angle){
 	var quaternion = new THREE.Quaternion();
-	quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), angle );
+	quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), angle);
 	poly.quaternion.copy(quaternion);
 	for (let child of poly.childs){
 		applyRotationToChilds(child, angle);
