@@ -215,12 +215,12 @@ function doubleClick() {
 		// Checks if polygon on the back has a father:
 		if (polygons[i_back].parent == scene){
 			
-			applyParenthood(i_front, i_back);
+			applyParenthood(polygons[i_front], polygons[i_back]);
 			
 		// Checks if polygon on the front has a father:
 		} else if ((polygons[i_front].parent == scene) && (checkParentLoop(polygons[i_back], i_front))){
 			
-			applyParenthood(i_back, i_front);
+			applyParenthood(polygons[i_back], polygons[i_front]);
 			
 		}
 		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.id);
@@ -251,15 +251,15 @@ function mouseDragged() {
 		
 		var i_poly = edit_mode["poly"];
 		var poly = polygons[i_poly];
-		var pinpoint_x = poly.pinpoint.x + poly.matrix.elements[12];
-		var pinpoint_y = poly.pinpoint.y + poly.matrix.elements[13];
+		var pinpoint = new THREE.Vector4(1, 1, 0, 1);
+		pinpoint.applyMatrix4(poly.matrix);
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
 		var axis = new THREE.Vector3(0, 0, 1);
 		
 		// Calculates the angle of the rotation:
-		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint_x, org_mouse_y - pinpoint_y, 0);
-		var rotateEnd = new THREE.Vector3( mouseX - pinpoint_x, mouseY - pinpoint_y, 0);
+		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint.x, org_mouse_y - pinpoint.y, 0);
+		var rotateEnd = new THREE.Vector3( mouseX - pinpoint.x, mouseY - pinpoint.y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
 		
 		// Applies the rotation:
@@ -285,7 +285,7 @@ function inside(point, poly) {
 	for (var j=0; j<poly.geometry.points.length; j++){
 		vs[j] = new Array(2);
 		// Retrieves coordinates of points taking into account the matrix transformations:
-		vec4 = new THREE.Vector4(poly.geometry.points[j].x - poly.pinpoint.x, poly.geometry.points[j].y - poly.pinpoint.y, 0, 1);
+		vec4 = new THREE.Vector4(poly.geometry.points[j].x, poly.geometry.points[j].y, 0, 1);
 		vec4.applyMatrix4(poly.matrixWorld);
 		vs[j][0] = ( vec4.x );
 		vs[j][1] = ( vec4.y );
@@ -310,7 +310,7 @@ function inside(point, poly) {
 };
 
 // Function to add a pinpoint to a given point:
-function addPinpoint(mouseX, mouseY, i_father){
+function addPinpoint(mouseX, mouseY, father){
 	// Adds a pinpoint:
 	var geometry_outer = new THREE.SphereGeometry(9);
 	var material_outer = new THREE.MeshBasicMaterial( {color: 0xFFFFFF} );
@@ -319,17 +319,14 @@ function addPinpoint(mouseX, mouseY, i_father){
 	sphere_outer.pinpoint = new THREE.Vector2(0,0,0);
 	
 	// Sets the spheres position:
-	vec4 = new THREE.Vector4(mouseX, mouseY, 5, 0);
-	m4 = polygons[i_father].matrixWorld.clone();
+	//vec4 = new THREE.Vector4(mouseX, mouseY, 5, 0);
+	m4 = father.matrixWorld.clone();
 	m4.getInverse(m4);
-	vec4.applyMatrix4(m4);
-	sphere_outer.position.copy(vec4);
+	sphere_outer.applyMatrix(m4);
 	
 	// Returns the pinpoint:
 	return sphere_outer;
 }
-
-// MB' = MA-1 X MB
 
 // Function to check if i_test is a relative of poly:
 function checkParentLoop(poly, i_test){
@@ -352,33 +349,50 @@ function checkParentLoop(poly, i_test){
 
 
 // Function to make a polygon father of another:
-function applyParenthood(i_father, i_son){
+function applyParenthood(father, son){
+	
+	// Recalculates the geometry position:
+	resetGeometry( son, mouseX, mouseY );
+	
+	// Removes child from scene:
+    scene.remove( son );
+	
 	// Polygon on the front becomes its father:
-	polygons[i_father].add(polygons[i_son]);
-	//polygons[i_son].parent = i_father;
-	polygons[i_son].pinpoint.set( mouseX-polygons[i_son].matrix.elements[12], mouseY-polygons[i_son].matrix.elements[13] );
+	father.add( son );
 	
 	// Apply inverse:
 	m4 = new THREE.Matrix4();
-	m4 = polygons[i_father].matrixWorld.clone();
+	m4 = father.matrixWorld.clone();
 	m4.getInverse(m4);
-	polygons[i_son].applyMatrix(m4);
-	
-	// Removes child from scene:
-    scene.remove( polygons[i_son] );
+	son.applyMatrix(m4);
 	
 	// Creates a pinpoint and adds it as a child:
-	polygons[i_father].add( addPinpoint(mouseX, mouseY, i_father) );
+	var pinpoint = addPinpoint(mouseX, mouseY, father);
+	father.add( pinpoint );
+	pinpoint.translateX(mouseX);
+	pinpoint.translateY(mouseY);
+	pinpoint.translateZ(5);
+	son.pinpoint = pinpoint;
 	
-	// Recalculates the geometry position:
-	resetGeometry(polygons[i_son], new THREE.Vector2(mouseX, mouseY));
 }
 
 // Function to translate a geometry by a certain offset and then compensate the translation in the polygon matrix:
-function resetGeometry(poly, offset){
-	poly.geometry.translate(-offset.x, -offset.y, 0);
-	poly.translateX(offset.x);
-	poly.translateY(offset.y);
+function resetGeometry(poly, mouseX, mouseY){
+	// Puts the geometry on origin:
+	vec4 = new THREE.Vector4( -mouseX, -mouseY, 0 );
+	vec4.applyMatrix4(poly.matrix);
+	poly.geometry.translate(vec4.x, vec4.y, 0);
+	var old_transforms = poly.matrix.clone();
+	old_transforms.getInverse(old_transforms);
+	poly.applyMatrix(old_transforms);
+	// Updates geometry points:
+	for (var i=0; i<poly.geometry.points.length; i++){
+		poly.geometry.points[i].x += vec4.x;
+		poly.geometry.points[i].y += vec4.y;
+	}
+	// Puts the polygon back to its place:
+	poly.position.set(mouseX, mouseY, 0);
+	render();
 }
 
 function findEldestParent(temp){
