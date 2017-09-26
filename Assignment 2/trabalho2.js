@@ -32,7 +32,7 @@ function init() {
 	// Set resize (reshape) callback
 	window.addEventListener( 'resize', resize );
 
-	// Set up mouse callbacks. 
+	// Set up mouse callbacks.
 	// Call mousePressed, mouseDragged and mouseReleased functions if defined.
 	// Arrange for global mouse variables to be set before calling user callbacks.
 	mouseIsPressed = false;
@@ -46,26 +46,26 @@ function init() {
 	}
 	renderer.domElement.addEventListener ( 'mousedown', function () {
 		setMouse();
-		mouseIsPressed = true; 
+		mouseIsPressed = true;
 		if (typeof mousePressed !== 'undefined') mousePressed();
 	});
-	renderer.domElement.addEventListener ( 'mousemove', function () { 
+	renderer.domElement.addEventListener ( 'mousemove', function () {
 		pmouseX = mouseX;
 		pmouseY = mouseY;
 		setMouse();
 		if (mouseIsPressed) {
-			if (typeof mouseDragged !== 'undefined') mouseDragged(); 
+			if (typeof mouseDragged !== 'undefined') mouseDragged();
 		}
 		if (typeof mouseMoved !== 'undefined') mouseMoved();
 	});
-	renderer.domElement.addEventListener ( 'mouseup', function () { 
-		mouseIsPressed = false; 
-		if (typeof mouseReleased !== 'undefined') mouseReleased(); 
+	renderer.domElement.addEventListener ( 'mouseup', function () {
+		mouseIsPressed = false;
+		if (typeof mouseReleased !== 'undefined') mouseReleased();
 	});
-	renderer.domElement.addEventListener ( 'dblclick', function () { 
+	renderer.domElement.addEventListener ( 'dblclick', function () {
 		setMouse();
-		mouseIsPressed = true; 
-		if (typeof doubleClick !== 'undefined') doubleClick(); 
+		mouseIsPressed = true;
+		if (typeof doubleClick !== 'undefined') doubleClick();
 	});
 
 	// If a setup function is defined, call it
@@ -75,7 +75,7 @@ function init() {
 	render();
 }
 
-// 
+//
 // Reshape callback
 //
 function resize() {
@@ -90,7 +90,7 @@ function resize() {
 
 //------------------------------------------------------------
 //
-// User code from here on 
+// User code from here on
 //
 //------------------------------------------------------------
 
@@ -136,7 +136,7 @@ function mousePressed() {
 		for (var k=polygons.length-1; k>=0; k--){
 			if (polygon_hit == -1 && inside([mouseX,mouseY], polygons[k])) polygon_hit = k;
 		}
-		
+
 		// If no objects are being edited at the moment:
 		if ((edit_mode["mode"] == -1) && (polygon_hit == -1)){
 			// States the creation of the new polygon:
@@ -146,7 +146,7 @@ function mousePressed() {
 			ph_geo.points = [];
 			var p = new THREE.Vector3 (mouseX,mouseY,0);
 			ph_geo.vertices.push(p);
-			geometry.vertices.push (p);	
+			geometry.vertices.push (p);
 			ph_geo.points.push(p);
 			var line = new THREE.Line (geometry, material);
 			// Adds created line to the scene:
@@ -198,13 +198,13 @@ function doubleClick() {
 	var collided = [];
 	// Checks for collision with every polygon:
 	for (var i=polygons.length-1; i>=0; i--){
-		
+
 		// Checks for collision:
 		if ( inside([mouseX, mouseY], polygons[i]) ){
-			
+
 			// Adds polygon to the list of collisions:
 			if (collided.length < 2) collided.push(i);
-			
+
 		}
 	}
 
@@ -214,14 +214,14 @@ function doubleClick() {
 		var i_back = collided[1];
 		// Checks if polygon on the back has a father:
 		if (polygons[i_back].parent == scene){
-			
+
 			applyParenthood(polygons[i_front], polygons[i_back]);
-			
+
 		// Checks if polygon on the front has a father:
 		} else if ((polygons[i_front].parent == scene) && (checkParentLoop(polygons[i_back], i_front))){
-			
+
 			applyParenthood(polygons[i_back], polygons[i_front]);
-			
+
 		}
 		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.id);
 		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].parent.id);
@@ -236,19 +236,19 @@ function mouseDragged() {
 		var poly = polygons[i_poly];
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
-		
+
 		// Calculates the distance to translate:
 		var dist_x = mouseX - org_mouse_x;
 		var dist_y = mouseY - org_mouse_y;
-		
+
 		// Applies the translation:
 		poly.position.copy(new THREE.Vector3 (poly.matrix.elements[12] + dist_x, poly.matrix.elements[13] + dist_y, poly.matrix.elements[14] + 0));
-		
+
 		edit_mode["points"][0] += dist_x;
 		edit_mode["points"][1] += dist_y;
-			
+
 	} else if (edit_mode["mode"] == "rotate"){
-		
+
 		var i_poly = edit_mode["poly"];
 		var poly = polygons[i_poly];
 		var pinpoint = new THREE.Vector4(1, 1, 0, 1);
@@ -256,12 +256,12 @@ function mouseDragged() {
 		var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
 		var axis = new THREE.Vector3(0, 0, 1);
-		
+
 		// Calculates the angle of the rotation:
 		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint.x, org_mouse_y - pinpoint.y, 0);
 		var rotateEnd = new THREE.Vector3( mouseX - pinpoint.x, mouseY - pinpoint.y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
-		
+
 		// Applies the rotation:
 		var quaternion = new THREE.Quaternion();
 	    quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle);
@@ -279,7 +279,7 @@ function mouseReleased() {
 
 // Function to check if a point is inside of a poly:
 function inside(point, poly) {
-	
+
 	var vs = new Array(poly.geometry.points.length);
 	// Builds an array containing lists of the points that define the polygon:
 	for (var j=0; j<poly.geometry.points.length; j++){
@@ -290,7 +290,7 @@ function inside(point, poly) {
 		vs[j][0] = ( vec4.x );
 		vs[j][1] = ( vec4.y );
 	}
-	
+
     // Ray-casting algorithm based on
     // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
 
@@ -315,15 +315,15 @@ function addPinpoint(mouseX, mouseY, father){
 	var geometry_outer = new THREE.SphereGeometry(9);
 	var material_outer = new THREE.MeshBasicMaterial( {color: 0xFFFFFF} );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
-	
+
 	sphere_outer.pinpoint = new THREE.Vector2(0,0,0);
-	
+
 	// Sets the spheres position:
 	//vec4 = new THREE.Vector4(mouseX, mouseY, 5, 0);
 	m4 = father.matrixWorld.clone();
 	m4.getInverse(m4);
 	sphere_outer.applyMatrix(m4);
-	
+
 	// Returns the pinpoint:
 	return sphere_outer;
 }
@@ -350,25 +350,25 @@ function checkParentLoop(poly, i_test){
 
 // Function to make a polygon father of another:
 function applyParenthood(father, son){
-	
+
 	// Recalculates the geometry position:
 	resetGeometry( son, mouseX, mouseY );
-	
+
 	// Removes child from scene:
     scene.remove( son );
-	
+
 	// Apply inverse:
 	m4 = new THREE.Matrix4();
 	m4 = father.matrixWorld.clone();
 	m4.getInverse(m4);
 	son.applyMatrix(m4);
-	
+
 	// Maybe we gain something updating this?
 	render();
-	
+
 	// Polygon on the front becomes its father:
 	father.add( son );
-	
+
 	// Creates a pinpoint and adds it as a child:
 	var pinpoint = addPinpoint(mouseX, mouseY, father);
 	father.add( pinpoint );
@@ -376,12 +376,12 @@ function applyParenthood(father, son){
 	pinpoint.translateY(mouseY);
 	pinpoint.translateZ(5);
 	son.pinpoint = pinpoint;
-	
+
 }
 
 // Function to translate a geometry by a certain offset and then compensate the translation in the polygon matrix:
 function resetGeometry(poly, mouseX, mouseY){
-	
+
 	// Puts the geometry on origin:
 	vec4 = new THREE.Vector4( -mouseX, -mouseY, 0 );
 	vec4.applyMatrix4(poly.matrix);
@@ -392,20 +392,27 @@ function resetGeometry(poly, mouseX, mouseY){
 	}
 	old_transforms.getInverse(old_transforms);
 	poly.applyMatrix(old_transforms);
-	
+
+    // So far so good, children wont even remotely feel a I matrix multiplication
+
 	// Updates geometry points:
 	for (var i=0; i<poly.geometry.points.length; i++){
 		poly.geometry.points[i].x += vec4.x;
 		poly.geometry.points[i].y += vec4.y;
 	}
-	
+
+    // This is only for backtracking anyway. Problem must be below
+
 	// Puts the polygon back to its place:
-	poly.translateX(mouseX);
-	poly.translateY(mouseY);
-	for (var i=0; i<poly.children.length; i++){
-		poly.children[i].translateX(-mouseX);
-		poly.children[i].translateY(-mouseY);
-	}
+    var m4 = new THREE.Matrix4();
+    m4.makeTranslation(mouseX, mouseY, 0);
+    poly.applyMatrix(m4);
+    var invm4 = new THREE.Matrix4();
+    invm4.getInverse(m4);
+    for (var i=0; i<poly.children.length; i++){
+        poly.children[i].applyMatrix(invm4);
+    }
+
 	render();
 }
 
