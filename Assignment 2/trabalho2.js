@@ -357,14 +357,17 @@ function applyParenthood(father, son){
 	// Removes child from scene:
     scene.remove( son );
 	
-	// Polygon on the front becomes its father:
-	father.add( son );
-	
 	// Apply inverse:
 	m4 = new THREE.Matrix4();
 	m4 = father.matrixWorld.clone();
 	m4.getInverse(m4);
 	son.applyMatrix(m4);
+	
+	// Maybe we gain something updating this?
+	render();
+	
+	// Polygon on the front becomes its father:
+	father.add( son );
 	
 	// Creates a pinpoint and adds it as a child:
 	var pinpoint = addPinpoint(mouseX, mouseY, father);
@@ -378,20 +381,31 @@ function applyParenthood(father, son){
 
 // Function to translate a geometry by a certain offset and then compensate the translation in the polygon matrix:
 function resetGeometry(poly, mouseX, mouseY){
+	
 	// Puts the geometry on origin:
 	vec4 = new THREE.Vector4( -mouseX, -mouseY, 0 );
 	vec4.applyMatrix4(poly.matrix);
 	poly.geometry.translate(vec4.x, vec4.y, 0);
 	var old_transforms = poly.matrix.clone();
+	for (var i=0; i<poly.children.length; i++){
+		poly.children[i].applyMatrix(old_transforms);
+	}
 	old_transforms.getInverse(old_transforms);
 	poly.applyMatrix(old_transforms);
+	
 	// Updates geometry points:
 	for (var i=0; i<poly.geometry.points.length; i++){
 		poly.geometry.points[i].x += vec4.x;
 		poly.geometry.points[i].y += vec4.y;
 	}
+	
 	// Puts the polygon back to its place:
-	poly.position.set(mouseX, mouseY, 0);
+	poly.translateX(mouseX);
+	poly.translateY(mouseY);
+	for (var i=0; i<poly.children.length; i++){
+		poly.children[i].translateX(-mouseX);
+		poly.children[i].translateY(-mouseY);
+	}
 	render();
 }
 
