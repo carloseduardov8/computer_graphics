@@ -263,6 +263,7 @@ function mouseDragged() {
 		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint.x, org_mouse_y - pinpoint.y, 0);
 		var rotateEnd = new THREE.Vector3( mouseX - pinpoint.x, mouseY - pinpoint.y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
+        // Adds the already rotated angle (in previous occasions):
         signed_angle += poly.rot_angle;
 
 		// Applies the rotation:
@@ -270,15 +271,18 @@ function mouseDragged() {
 	    quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle);
 	    poly.quaternion.copy(quaternion);
 
+        // Saves total angle rotated:
         ph_angle = signed_angle;
 	}
 }
 
 
 function mouseReleased() {
+    // Saves the current angle this polygon has been rotated by:
     if (edit_mode["mode"] == "rotate"){
         polygons[edit_mode["poly"]].rot_angle = ph_angle;
     }
+    // Stops translating or rotating:
     if ((edit_mode["mode"] == "translate") || (edit_mode["mode"] == "rotate")){
 		edit_mode["mode"] = -1;
 	}
@@ -324,11 +328,11 @@ function addPinpoint(mouseX, mouseY, father){
 	var material_outer = new THREE.MeshBasicMaterial( {color: 0xFFFFFF} );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
 
+    // Sets up baseline attributes:
 	sphere_outer.pinpoint = new THREE.Vector2(0,0,0);
     sphere_outer.rot_angle = 0;
 
-	// Sets the spheres position:
-	//vec4 = new THREE.Vector4(mouseX, mouseY, 5, 0);
+	// Multiplies the pinpoint by the inverse of its father:
 	m4 = father.matrixWorld.clone();
 	m4.getInverse(m4);
 	sphere_outer.applyMatrix(m4);
@@ -423,14 +427,6 @@ function resetGeometry(poly, mouseX, mouseY){
 
 	render();
 }
-
-function findEldestParent(temp){
-    while (temp.parent != scene){
-		temp = temp.parent;
-	}
-	return temp;
-}
-
 
 
 init();
