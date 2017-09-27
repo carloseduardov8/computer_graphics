@@ -71,6 +71,29 @@ function init() {
 	// If a setup function is defined, call it
 	if (typeof setup !== 'undefined') setup();
 
+    // USER CODE PART OF INIT
+    // Adds polygon0 to the scene, representing the canvas itself:
+    var geometry = new THREE.Geometry();
+    var p1 = new THREE.Vector3 (0, 0, -10);
+    var p2 = new THREE.Vector3 (width*10, 0, -10);
+    var p3 = new THREE.Vector3 (width*10, height*10, -10);
+    var p4 = new THREE.Vector3 (0, height*10, -10);
+    geometry.vertices.push(p1);
+    geometry.vertices.push(p2);
+    geometry.vertices.push(p3);
+    geometry.vertices.push(p4);
+    var shape = new THREE.Shape(geometry.vertices);
+    var extrudeSettings = { amount: 8, bevelEnabled: false, bevelSegments: 2, steps: 2, bevelSize: 1, bevelThickness: 1 };
+    var geometry = new THREE.ExtrudeGeometry( shape , extrudeSettings);
+    var material2 = new THREE.MeshBasicMaterial( { color: 0x000000 , clipIntersection: true } );
+    var mesh = new THREE.Mesh( geometry, material2 );
+    mesh.pinpoint = new THREE.Vector2(0, 0);
+    mesh.myId = polygons.length;
+    mesh.geometry.points = [p1, p2, p3, p4];
+    mesh.rot_angle = 0;
+    polygons.push(mesh);
+    scene.add( mesh );
+
 	// First render
 	render();
 }
@@ -135,11 +158,14 @@ function mousePressed() {
 		// Checks if a polygon was hit by the mouse:
 		var polygon_hit = -1;
 		for (var k=polygons.length-1; k>=0; k--){
-			if (polygon_hit == -1 && inside([mouseX,mouseY], polygons[k])) polygon_hit = k;
+			if (inside([mouseX,mouseY], polygons[k])) {
+                polygon_hit = k;
+                break;
+            }
 		}
 
 		// If no objects are being edited at the moment:
-		if ((edit_mode["mode"] == -1) && (polygon_hit == -1)){
+		if ((edit_mode["mode"] == -1) && (polygon_hit == 0)){
 			// States the creation of the new polygon:
 			edit_mode["mode"] = "create_new";
 			// Creates a new line to start drawing the polygon:
@@ -168,7 +194,7 @@ function mousePressed() {
 				var material2 = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff , clipIntersection: true } );
 				var mesh = new THREE.Mesh( geometry, material2 );
 				mesh.pinpoint = new THREE.Vector2(0, 0);
-				mesh.id = polygons.length;
+				mesh.myId = polygons.length;
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
                 mesh.rot_angle = 0;
@@ -182,7 +208,7 @@ function mousePressed() {
 				ph_geo.vertices.push(p);
 				ph_geo.points.push(p);
 			}
-		} else if (polygon_hit != -1){
+		} else if (polygon_hit != 0){
 			if (polygons[ polygon_hit ].parent == scene){
 				edit_mode["mode"] = "translate";
 				edit_mode["poly"] = polygon_hit;
@@ -215,7 +241,7 @@ function doubleClick() {
 		var i_front = collided[0];
 		var i_back = collided[1];
 		// Checks if polygon on the back has a father:
-		if (polygons[i_back].parent == scene){
+		if ((polygons[i_back].parent == scene) && (i_back != 0)){
 
 			applyParenthood(polygons[i_front], polygons[i_back]);
 
@@ -225,8 +251,8 @@ function doubleClick() {
 			applyParenthood(polygons[i_back], polygons[i_front]);
 
 		}
-		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.id);
-		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].parent.id);
+		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.myId);
+		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].parent.myId);
 	}
 }
 
@@ -291,7 +317,6 @@ function mouseReleased() {
 
 // Function to check if a point is inside of a poly:
 function inside(point, poly) {
-
 	var vs = new Array(poly.geometry.points.length);
 	// Builds an array containing lists of the points that define the polygon:
 	for (var j=0; j<poly.geometry.points.length; j++){
