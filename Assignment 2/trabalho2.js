@@ -102,6 +102,7 @@ var ph_geo = new THREE.Geometry();				// Placeholder geometry for any operation
 var new_line;									// Current line being created
 var click_timer = 50;							// Time since last click
 var time_to_wait = 20;							// Time to identify a double click
+var ph_angle = 0;                               // Placeholder angle
 
 //
 // The render callback
@@ -170,6 +171,7 @@ function mousePressed() {
 				mesh.id = polygons.length;
 				mesh.geometry.points = [];
 				mesh.geometry.points = ph_geo.points;
+                mesh.rot_angle = 0;
 				scene.remove(new_line);
 				polygons.push(mesh);
 				scene.add( mesh );
@@ -252,8 +254,8 @@ function mouseDragged() {
 		var i_poly = edit_mode["poly"];
 		var poly = polygons[i_poly];
 		var pinpoint = new THREE.Vector4(1, 1, 0, 1);
-		pinpoint.applyMatrix4(poly.matrix);
-		var org_mouse_x = edit_mode["points"][0];
+		pinpoint.applyMatrix4(poly.matrixWorld);
+        var org_mouse_x = edit_mode["points"][0];
 		var org_mouse_y = edit_mode["points"][1];
 		var axis = new THREE.Vector3(0, 0, 1);
 
@@ -261,17 +263,23 @@ function mouseDragged() {
 		var rotateStart = new THREE.Vector3( org_mouse_x - pinpoint.x, org_mouse_y - pinpoint.y, 0);
 		var rotateEnd = new THREE.Vector3( mouseX - pinpoint.x, mouseY - pinpoint.y, 0);
 		var signed_angle = Math.atan2(rotateEnd.y, rotateEnd.x) - Math.atan2(rotateStart.y, rotateStart.x);
+        signed_angle += poly.rot_angle;
 
 		// Applies the rotation:
 		var quaternion = new THREE.Quaternion();
 	    quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), signed_angle);
 	    poly.quaternion.copy(quaternion);
+
+        ph_angle = signed_angle;
 	}
 }
 
 
 function mouseReleased() {
-	if ((edit_mode["mode"] == "translate") || (edit_mode["mode"] == "rotate")){
+    if (edit_mode["mode"] == "rotate"){
+        polygons[edit_mode["poly"]].rot_angle = ph_angle;
+    }
+    if ((edit_mode["mode"] == "translate") || (edit_mode["mode"] == "rotate")){
 		edit_mode["mode"] = -1;
 	}
 }
@@ -317,6 +325,7 @@ function addPinpoint(mouseX, mouseY, father){
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
 
 	sphere_outer.pinpoint = new THREE.Vector2(0,0,0);
+    sphere_outer.rot_angle = 0;
 
 	// Sets the spheres position:
 	//vec4 = new THREE.Vector4(mouseX, mouseY, 5, 0);
@@ -393,25 +402,24 @@ function resetGeometry(poly, mouseX, mouseY){
 	old_transforms.getInverse(old_transforms);
 	poly.applyMatrix(old_transforms);
 
-    // So far so good, children wont even remotely feel a I matrix multiplication
-
 	// Updates geometry points:
 	for (var i=0; i<poly.geometry.points.length; i++){
 		poly.geometry.points[i].x += vec4.x;
 		poly.geometry.points[i].y += vec4.y;
 	}
 
-    // This is only for backtracking anyway. Problem must be below
-
 	// Puts the polygon back to its place:
     var m4 = new THREE.Matrix4();
     m4.makeTranslation(mouseX, mouseY, 0);
     poly.applyMatrix(m4);
+
+    // Inverts the applied matrix so all children cancel out nicely:
     var invm4 = new THREE.Matrix4();
     invm4.getInverse(m4);
     for (var i=0; i<poly.children.length; i++){
         poly.children[i].applyMatrix(invm4);
     }
+
 
 	render();
 }
