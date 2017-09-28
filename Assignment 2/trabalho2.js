@@ -126,6 +126,8 @@ var new_line;									// Current line being created
 var click_timer = 50;							// Time since last click
 var time_to_wait = 20;							// Time to identify a double click
 var ph_angle = 0;                               // Placeholder angle
+var pinpoints = [];                             // Array of all pinpoints
+var pinpoint_radius = 9;                        // Radius of the pinpoint
 
 //
 // The render callback
@@ -223,37 +225,53 @@ function mousePressed() {
 }
 
 function doubleClick() {
-	var collided = [];
-	// Checks for collision with every polygon:
-	for (var i=polygons.length-1; i>=0; i--){
+    // Checks if the user wants to remove a pinpoint:
+    var pinpoint_hit = -1;
+    for (var i=0; i<pinpoints.length; i++){
+        if ( insidePinpoint(new THREE.Vector2(mouseX, mouseY), pinpoints[i]) ){
+            pinpoint_hit = i;
+            break;
+        }
+    }
 
-		// Checks for collision:
-		if ( inside([mouseX, mouseY], polygons[i]) ){
+    // If no pinpoint was hit, go add a new pinpoint:
+    if (pinpoint_hit == -1){
+    	var collided = [];
+    	// Checks for collision with every polygon:
+    	for (var i=polygons.length-1; i>=0; i--){
 
-			// Adds polygon to the list of collisions:
-			if (collided.length < 2) collided.push(i);
+    		// Checks for collision:
+    		if ( inside([mouseX, mouseY], polygons[i]) ){
 
-		}
-	}
+    			// Adds polygon to the list of collisions:
+    			if (collided.length < 2) collided.push(i);
 
-	// Checks if more than one polygon collided:
-	if (collided.length == 2){
-		var i_front = collided[0];
-		var i_back = collided[1];
-		// Checks if polygon on the back has a father:
-		if ((polygons[i_back].parent == scene) && (i_back != 0)){
+    		}
+    	}
 
-			applyParenthood(polygons[i_front], polygons[i_back]);
+    	// Checks if more than one polygon collided:
+    	if (collided.length == 2){
+    		var i_front = collided[0];
+    		var i_back = collided[1];
+    		// Checks if polygon on the back has a father:
+    		if ((polygons[i_back].parent == scene) && (i_back != 0)){
 
-		// Checks if polygon on the front has a father:
-		} else if ((polygons[i_front].parent == scene) && (checkParentLoop(polygons[i_back], i_front))){
+    			applyParenthood(polygons[i_front], polygons[i_back]);
 
-			applyParenthood(polygons[i_back], polygons[i_front]);
+    		// Checks if polygon on the front has a father:
+    		} else if ((polygons[i_front].parent == scene) && (checkParentLoop(polygons[i_back], i_front))){
 
-		}
-		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.myId);
-		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].parent.myId);
-	}
+    			applyParenthood(polygons[i_back], polygons[i_front]);
+
+    		}
+    		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.myId);
+    		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].parent.myId);
+    	}
+
+    // If a pinpoint was hit, go remove it:
+    } else {
+        console.log("I know you want to remove pinpoint "+pinpoint_hit);
+    }
 }
 
 
@@ -349,7 +367,7 @@ function inside(point, poly) {
 // Function to add a pinpoint to a given point:
 function addPinpoint(mouseX, mouseY, father){
 	// Adds a pinpoint:
-	var geometry_outer = new THREE.SphereGeometry(9);
+	var geometry_outer = new THREE.SphereGeometry(pinpoint_radius);
 	var material_outer = new THREE.MeshBasicMaterial( {color: 0xFFFFFF} );
 	var sphere_outer = new THREE.Mesh( geometry_outer, material_outer );
 
@@ -363,6 +381,7 @@ function addPinpoint(mouseX, mouseY, father){
 	sphere_outer.applyMatrix(m4);
 
 	// Returns the pinpoint:
+    pinpoints.push(sphere_outer);
 	return sphere_outer;
 }
 
@@ -375,7 +394,6 @@ function checkParentLoop(poly, i_test){
 			return false;
 		} else {
 			temp = temp.parent;
-			console.log("hey");
 		}
 		count_loop++;
 		if (count_loop > 80){
@@ -453,5 +471,18 @@ function resetGeometry(poly, mouseX, mouseY){
 	render();
 }
 
+function insidePinpoint(point, pinpoint){
+    // Transforms pinpoint coordinates to the world:
+    vec4 = new THREE.Vector4(0, 0, 0, 1);
+    vec4.applyMatrix4( pinpoint.matrixWorld );
+    // Checks if the pinpoint was hit by the point:
+    dist_x = Math.abs(vec4.x - point.x);
+    dist_y = Math.abs(vec4.y - point.y);
+    if ((dist_x <= pinpoint_radius) && (dist_y <= pinpoint_radius)){
+        return true;
+    } else {
+        return false;
+    }
+}
 
 init();
