@@ -197,15 +197,9 @@ function mousePressed() {
 				var mesh = new THREE.Mesh( geometry, material2 );
 				mesh.pinpoint = new THREE.Vector2(0, 0);
 				mesh.myId = polygons.length;
-                mesh.original_geometry = mesh.geometry.clone();
+                mesh.isVirgin = true;
 				mesh.geometry.points = [];
-                mesh.original_points = [];
 				mesh.geometry.points = ph_geo.points;
-                for (var l=0; l<ph_geo.points.length; l++){
-                    var v2 = new THREE.Vector2(ph_geo.points[l].x, ph_geo.points[l].y);
-                    mesh.original_points.push( v2 );
-                }
-                console.log(mesh.geometry.original_points);
                 mesh.rot_angle = 0;
 				scene.remove(new_line);
 				polygons.push(mesh);
@@ -261,18 +255,16 @@ function doubleClick() {
     		var i_front = collided[0];
     		var i_back = collided[1];
     		// Checks if polygon on the back has a father:
-    		if ((polygons[i_back].parent == scene) && (i_back != 0)){
+    		if ((polygons[i_back].parent == scene) && (polygons[i_back].isVirgin) && (i_back != 0)){
 
     			applyParenthood(polygons[i_front], polygons[i_back]);
 
     		// Checks if polygon on the front has a father:
-    		} else if ((polygons[i_front].parent == scene) && (checkParentLoop(polygons[i_back], i_front))){
+            } else if ((polygons[i_front].parent == scene) && (polygons[i_front].isVirgin) && (checkParentLoop(polygons[i_back], i_front))){
 
     			applyParenthood(polygons[i_back], polygons[i_front]);
 
     		}
-    		console.log("Pai do poligono " + i_back + ": " + polygons[i_back].parent.myId);
-    		console.log("Pai do poligono " + i_front + ": " + polygons[i_front].parent.myId);
     	}
 
     // If a pinpoint was hit, go remove it:
@@ -284,6 +276,9 @@ function doubleClick() {
             pinpoint.remove(pinpoint.children[i]);
         }
         pinpoint.parent.remove(pinpoint);
+        // Removes pinpoint from array:
+        var ind = pinpoints.indexOf(pinpoint);
+        pinpoints.splice(ind, 1);
     }
 }
 
@@ -446,6 +441,7 @@ function applyParenthood(father, son){
 	son.applyMatrix(m4);
 
     // Polygon becomes son of pinpoint:
+    son.isVirgin = false;
 	pinpoint.add( son );
 
 }
@@ -453,16 +449,8 @@ function applyParenthood(father, son){
 // Function to translate a geometry by a certain offset and then compensate the translation in the polygon matrix:
 function resetGeometry(poly, mouseX, mouseY){
 
-    // Takes the very original attributes:
-    poly.geometry = poly.original_geometry.clone();
-    poly.geometry.points = [];
-    for (var i=0; i<poly.original_points.length; i++){
-        var vec2 = new THREE.Vector2(poly.original_points[i].x, poly.original_points[i].y);
-        poly.geometry.points.push( vec2 );
-    }
-
 	// Puts the geometry on origin:
-	vec4 = new THREE.Vector4( -mouseX, -mouseY, 0 );
+	vec4 = new THREE.Vector4( -mouseX, -mouseY, 0, 1 );
 	vec4.applyMatrix4(poly.matrix);
 	poly.geometry.translate(vec4.x, vec4.y, 0);
 	var old_transforms = poly.matrix.clone();
