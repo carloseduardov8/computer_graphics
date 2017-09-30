@@ -197,8 +197,15 @@ function mousePressed() {
 				var mesh = new THREE.Mesh( geometry, material2 );
 				mesh.pinpoint = new THREE.Vector2(0, 0);
 				mesh.myId = polygons.length;
+                mesh.original_geometry = mesh.geometry.clone();
 				mesh.geometry.points = [];
+                mesh.original_points = [];
 				mesh.geometry.points = ph_geo.points;
+                for (var l=0; l<ph_geo.points.length; l++){
+                    var v2 = new THREE.Vector2(ph_geo.points[l].x, ph_geo.points[l].y);
+                    mesh.original_points.push( v2 );
+                }
+                console.log(mesh.geometry.original_points);
                 mesh.rot_angle = 0;
 				scene.remove(new_line);
 				polygons.push(mesh);
@@ -270,7 +277,13 @@ function doubleClick() {
 
     // If a pinpoint was hit, go remove it:
     } else {
-        console.log("I know you want to remove pinpoint "+pinpoint_hit);
+        var pinpoint = pinpoints[pinpoint_hit];
+        for (var i=0; i<pinpoint.children.length; i++){
+            pinpoint.children[i].applyMatrix( pinpoint.matrixWorld );
+            scene.add(pinpoint.children[i]);
+            pinpoint.remove(pinpoint.children[i]);
+        }
+        pinpoint.parent.remove(pinpoint);
     }
 }
 
@@ -413,17 +426,8 @@ function applyParenthood(father, son){
 	// Removes child from scene:
     scene.remove( son );
 
-	// Apply inverse:
-	m4 = new THREE.Matrix4();
-	m4 = father.matrixWorld.clone();
-	m4.getInverse(m4);
-	son.applyMatrix(m4);
-
 	// Maybe we gain something updating this?
 	render();
-
-	// Polygon on the front becomes its father:
-	father.add( son );
 
 	// Creates a pinpoint and adds it as a child:
 	var pinpoint = addPinpoint(mouseX, mouseY, father);
@@ -433,10 +437,29 @@ function applyParenthood(father, son){
 	pinpoint.translateZ(5);
 	son.pinpoint = pinpoint;
 
+    render();
+
+    // Apply inverse:
+	m4 = new THREE.Matrix4();
+	m4 = pinpoint.matrixWorld.clone();
+	m4.getInverse(m4);
+	son.applyMatrix(m4);
+
+    // Polygon becomes son of pinpoint:
+	pinpoint.add( son );
+
 }
 
 // Function to translate a geometry by a certain offset and then compensate the translation in the polygon matrix:
 function resetGeometry(poly, mouseX, mouseY){
+
+    // Takes the very original attributes:
+    poly.geometry = poly.original_geometry.clone();
+    poly.geometry.points = [];
+    for (var i=0; i<poly.original_points.length; i++){
+        var vec2 = new THREE.Vector2(poly.original_points[i].x, poly.original_points[i].y);
+        poly.geometry.points.push( vec2 );
+    }
 
 	// Puts the geometry on origin:
 	vec4 = new THREE.Vector4( -mouseX, -mouseY, 0 );
