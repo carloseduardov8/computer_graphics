@@ -32,3 +32,7 @@ body {
 	margin: 4px 2px;
 	border-radius: 50%;
 }
+
+.selected {
+	background-color: #0eb234; !important
+}
