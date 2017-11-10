@@ -1,5 +1,6 @@
 var container, controls;
 var camera, scene, renderer;
+var totalFrames = 100;
 init();
 animate();
 
@@ -40,16 +41,8 @@ function resize() {
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-var x1 = 0;
 
 function animate() {
-	x1++;
-	if (x1 == 200){
-		controls.reset();
-	} else if (x1 == 400){
-		controls.saveState();
-		x1 = 0;
-	}
 	controls.update();
 	renderer.render( scene, camera );
 	requestAnimationFrame( animate );
@@ -57,7 +50,7 @@ function animate() {
 
 var states = [];
 
-for (var i=1; i<=100; i++){
+for (var i=1; i<=totalFrames; i++){
 	
 	// Creates the buttons:
 	var btn = document.createElement("BUTTON");
@@ -67,7 +60,7 @@ for (var i=1; i<=100; i++){
 	btn.addEventListener("click", clickListener.bind( null, i) );
 	
 	// Saves initial position state:
-	states[i] = new THREE.Vector3(0, 0, 0);
+	states[i] = new THREE.Vector3(-50, -50, -50);
 	
 	// Appends the button:
 	var info = document.getElementById("info");
@@ -75,5 +68,18 @@ for (var i=1; i<=100; i++){
 }
 
 function clickListener(index){
-	console.log("hey "+ index);
+	
+	// Saves the controls position:
+	controls.saveState();
+	
+	// Copies the resulting vector:
+	var vec = new THREE.Vector3();
+	vec.x = controls.position0.x;
+	vec.y = controls.position0.y;
+	vec.z = controls.position0.z;
+	
+	// Assings state vector to corresponding frame:
+	states[index] = vec;
+	
+	console.log(states[index]);
 }
