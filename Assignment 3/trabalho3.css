@@ -36,3 +36,12 @@ body {
 .selected {
 	background-color: #0eb234; !important
 }
+
+.animated {
+	background-color: #e83e55; !important
+}
+
+#play {
+	background-color: #f4c242; !important
+	padding: 12px; !important
+}

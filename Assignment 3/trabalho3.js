@@ -1,9 +1,11 @@
 var container, controls;
 var camera, scene, renderer;
-var totalFrames = 100;					// Number of frames in timeline
+var totalFrames = 90;					// Number of frames in timeline
 var states = [];						// Array to hold frame states
 var selected;							// Currently selected frame
 var totalSelected = 0;					// Total frames already selected
+var currentFrame = 1;					// Current frame to start animation from
+var playAnim = false;					// Tracks if the play button is active
 init();
 animate();
 
@@ -57,6 +59,10 @@ function init() {
 		info.appendChild(btn);
 	}
 	
+	// Adds event listener to play button:
+	document.getElementById("play").addEventListener("click", function(){
+		playAnim = true;
+	});
 }
 
 function resize() {
@@ -65,8 +71,44 @@ function resize() {
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
+var eo = 0;
 
 function animate() {
+	
+	// Executes animation if need be:
+	if (playAnim){
+		
+		// Handles timeline animation (marks frames as red as they animate):
+		document.getElementById("frame"+currentFrame).setAttribute("class", "round-button animated");
+		if (currentFrame == 1){
+			if (states[totalFrames].w == 1){
+				document.getElementById("frame"+totalFrames).setAttribute("class", "round-button selected");
+			} else {
+				document.getElementById("frame"+totalFrames).setAttribute("class", "round-button");
+			}
+		} else {
+			if (states[currentFrame-1].w == 1){
+				document.getElementById("frame"+(currentFrame-1)).setAttribute("class", "round-button selected");
+			} else {
+				document.getElementById("frame"+(currentFrame-1)).setAttribute("class", "round-button");
+			}
+		}
+		
+		// Applies animation to controls:
+		controls.position0 = states[currentFrame];
+		controls.reset();
+		
+		eo++;
+		if (eo == 2){
+			currentFrame++;
+			eo = 0;
+		}
+	}
+	if (currentFrame == totalFrames+1){
+		currentFrame = 1;
+	}
+	
+	// Updates scene:
 	controls.update();
 	renderer.render( scene, camera );
 	requestAnimationFrame( animate );
@@ -75,7 +117,14 @@ function animate() {
 function interpolate(start, end){
 	var startVec = states[start];
 	var endVec = states[end];
-	var length = end-start;
+	
+	// Calculates number of frames to interpolate:
+	var length;
+	if (end > start){
+		length = end-start;
+	} else {
+		length = totalFrames - end + start;
+	}
 	
 	var varX = ( endVec.x - startVec.x ) / length;
 	var varY = ( endVec.y - startVec.y ) / length;
@@ -85,7 +134,7 @@ function interpolate(start, end){
 	for (var j=start+1; j!=end; j++, k++){
 		
 		states[j] = new THREE.Vector4(startVec.x + varX*k, startVec.y + varY*k, startVec.z + varZ*k, 0);
-		console.log(states[j], k);
+		
 		// Resets j if needed:
 		if (j == totalFrames+1){
 			j = 0;
