@@ -123,7 +123,7 @@ function interpolate(start, end){
 	if (end > start){
 		length = end-start;
 	} else {
-		length = totalFrames - end + start;
+		length = totalFrames - start + end;
 	}
 	
 	var varX = ( endVec.x - startVec.x ) / length;
@@ -181,6 +181,7 @@ function clickListener(index){
 			// Checks if states[j] is a keyframe:
 			if (states[j].w == 1){
 				interpolate(j, index);
+				console.log("Interpolating from "+j+" to "+index);
 				break;
 			}
 		} while (states[j].w == 0);
@@ -197,6 +198,7 @@ function clickListener(index){
 			// Checks if states[j] is a keyframe:
 			if (states[j].w == 1){
 				interpolate(index, j);
+				console.log("Interpolating from "+index+" to "+j);
 				break;
 			}
 		} while (states[j].w == 0);
