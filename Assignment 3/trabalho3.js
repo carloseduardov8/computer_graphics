@@ -1,5 +1,5 @@
-var container, controls;
-var camera, scene, renderer;
+var mouseIsPressed=0, mouseX, mouseY, pMouseX, pmouseY;
+var camera, scene, renderer, container, portal;
 var totalFrames = 90;					// Number of frames in timeline
 var states = [];						// Array to hold frame states
 var selected;							// Currently selected frame
@@ -11,17 +11,26 @@ animate();
 
 function init() {
 	
+	// Creates the canvas:
 	container = document.createElement( 'div' );
+	container.setAttribute("id", "canvas");
+	container.oncontextmenu = function (e) {
+		e.preventDefault();
+	};
 	document.body.appendChild( container );
-	camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 10 );
+	
+	// Sets up the camera:
+	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 200 );
 	camera.position.z = 2;
-	controls = new THREE.OrbitControls( camera );
+	
+	// Creates scene and adds light:
 	scene = new THREE.Scene();
 	scene.add( new THREE.HemisphereLight() );
 	var directionalLight = new THREE.DirectionalLight( 0xffeedd );
 	directionalLight.position.set( 0, 0, 2 );
 	scene.add( directionalLight );
-	//3ds files dont store normal maps
+	
+	// Loads 3DS file:
 	var loader = new THREE.TextureLoader();
 	var normal = loader.load( 'models/3ds/portalgun/textures/normal.jpg' );
 	var loader = new THREE.TDSLoader( );
@@ -31,14 +40,73 @@ function init() {
 			if ( child instanceof THREE.Mesh ) {
 				child.material.normalMap = normal;
 			}
-		} );
+		} );  
+		portal = object;
+		portal.position.z = -3;
 		scene.add( object );
 	});
+	
+	// Renderer:
 	renderer = new THREE.WebGLRenderer();
 	renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	container.appendChild( renderer.domElement );
+	
 	window.addEventListener( 'resize', resize, false );
+	
+	// Mouse event listeners:
+	mouseIsPressed = false;
+	mouseX = 0;
+	mouseY = 0;
+	pmouseX = 0;
+	pmouseY = 0;
+
+	var setMouse = function ()
+	{
+		mouseX = event.clientX;
+		mouseY = event.clientY;
+	}
+	
+	// Jquery mouse events (except for mouse wheel):
+	$("#canvas").ready(function() {
+		
+		// Mouse down event:
+		$("canvas").mousedown(function(de) {	
+			setMouse();
+			// For left mouse button:
+			if (de.which == 1){
+				mouseIsPressed = 1;
+			}
+			// For right mouse button:
+			if (de.which == 3){
+				mouseIsPressed = 3;
+			}
+		});
+		
+		// Mouse up event:
+		$("canvas").mouseup(function(de) {
+			mouseIsPressed = 0; 
+		});
+		
+		// Mouse move event:
+		$("canvas").mousemove(function(de) {
+			pmouseX = mouseX;
+			pmouseY = mouseY;
+			setMouse();
+			if (mouseIsPressed == 1){
+				rotate(); 
+			} else if (mouseIsPressed == 3){
+				translateXY();
+			} 
+		});
+	});
+	
+	// Adds event handler for mouse wheel:
+	renderer.domElement.addEventListener ('wheel', function (){ 
+		translateZ(); 
+	});
+
+
 	
 	// Sets up initial frame data:
 	
@@ -49,7 +117,7 @@ function init() {
 		btn.setAttribute("id", "frame"+i);
 		btn.setAttribute("class", "round-button");
 		
-		btn.addEventListener("click", clickListener.bind( null, i) );
+		btn.addEventListener("click", clickKeyFrame.bind( null, i) );
 		
 		// Saves initial position state:
 		states[i] = new THREE.Vector4(-50, -50, -50, 0);
@@ -65,51 +133,17 @@ function init() {
 	});
 }
 
-function resize() {
+// Function to be called when window is resized:
+function resize() { 
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-var eo = 0;
 
 function animate() {
 	
-	// Executes animation if need be:
-	if (playAnim){
-		
-		// Handles timeline animation (marks frames as red as they animate):
-		document.getElementById("frame"+currentFrame).setAttribute("class", "round-button animated");
-		if (currentFrame == 1){
-			if (states[totalFrames].w == 1){
-				document.getElementById("frame"+totalFrames).setAttribute("class", "round-button selected");
-			} else {
-				document.getElementById("frame"+totalFrames).setAttribute("class", "round-button");
-			}
-		} else {
-			if (states[currentFrame-1].w == 1){
-				document.getElementById("frame"+(currentFrame-1)).setAttribute("class", "round-button selected");
-			} else {
-				document.getElementById("frame"+(currentFrame-1)).setAttribute("class", "round-button");
-			}
-		}
-		
-		// Applies animation to controls:
-		controls.position0 = states[currentFrame];
-		controls.reset();
-		
-		eo++;
-		if (eo == 2){
-			currentFrame++;
-			eo = 0;
-		}
-	}
-	if (currentFrame == totalFrames+1){
-		currentFrame = 1;
-	}
-	
 	// Updates scene:
-	controls.update();
 	renderer.render( scene, camera );
 	requestAnimationFrame( animate );
 }
@@ -143,8 +177,94 @@ function interpolate(start, end){
 }
 
 
+function translateZ() {
+	
+	var e = window.event || e;
+	var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
 
-function clickListener(index){
+	// Attenuates translation factor:
+	delta *= 0.5;
+	
+	// Translates the object on the z axis:
+	portal.position.z += delta;
+
+}
+
+function translateXY() 
+{
+	var delta = new THREE.Vector3();
+	var mouse = new THREE.Vector3(mouseX, mouseY, 0);
+	var pmouse = new THREE.Vector3(pmouseX, pmouseY, 0);
+
+	//Calculates difference for translation:
+	delta.subVectors(mouse, pmouse);
+	
+	// Attenuates translation factor:
+	delta.multiplyScalar(0.006);
+
+	portal.position.x += delta.x;
+	portal.position.y -= delta.y;
+}
+
+function rotate()
+{
+	var vec1 = getArcBallVec(pmouseX, pmouseY, portal);
+	var vec2 = getArcBallVec(mouseX, mouseY, portal);
+	var angle = vec1.angleTo(vec2);
+	var vec3 = new THREE.Vector3();
+	var quaternion = new THREE.Quaternion();
+
+	vec3.crossVectors(vec1, vec2);
+	vec3.normalize();
+
+	quaternion.setFromAxisAngle(vec3, angle);
+	portal.applyQuaternion(quaternion);
+}
+
+function getArcBallVec(x, y, object)
+{
+	var mouse = new THREE.Vector3(x - (window.innerWidth / 2), y - (window.innerHeight / 2), 0);
+	var obj = toScreenPosition(object, camera);
+	var p = new THREE.Vector3();
+
+	p.subVectors(mouse, obj);
+	p.y = -p.y;
+
+	var OPSquared = p.x * p.x + p.y * p.y;
+
+	if (OPSquared <= 200*200)
+	{
+		p.z = Math.sqrt(200*200 - OPSquared);  // Pythagore
+	}
+
+	else
+	{
+		p.normalize();  // nearest point
+	} 
+
+	return p;
+}
+
+function toScreenPosition(obj, camera)
+{
+    var vector = new THREE.Vector3();
+
+    var widthHalf = 0.5*renderer.context.canvas.width;
+    var heightHalf = 0.5*renderer.context.canvas.height;
+
+    obj.updateMatrixWorld();
+    vector.setFromMatrixPosition(obj.matrixWorld);
+    vector.project(camera);
+
+    vector.x = ( vector.x * widthHalf );
+    vector.y = - ( vector.y * heightHalf );
+    vector.z = 0;
+
+    return vector;
+}
+
+// Function to be called when a keyframe is clicked on:
+function clickKeyFrame(index){
 	
 	// Saves the controls position:
 	controls.saveState();
