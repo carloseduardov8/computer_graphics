@@ -4,19 +4,36 @@
 		<title>Trabalho 3 - Computação Gráfica</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"> 
-		<link rel="stylesheet" href="trabalho3.css">
+		<link rel="stylesheet" href="css/trabalho3.css">
+		<link rel="stylesheet" href="css/jquery-ui.css">
 	</head>
 
 	<body>
 		<div id="info">
-			<button class="round-button" id="play"></button>
+			<input type="image" id="play" src="css/images/play-pause.png" />
 		</div>
 
-		<script src="three.min.js"></script>
-		<script src="js/controls/OrbitControls.js"></script>
+		<script src="js/three.min.js"></script>
 		<script src="js/loaders/TDSLoader.js"></script>
-		<script src="js/jquery-3.2.1.min.js"></script>
+		<script src="js/jquery.min.js"></script>
+		<script src="js/jquery-ui.js"></script>
+		<script src="js/dialog-box.js"></script>
 		<script src="trabalho3.js"></script>
+		
+		<!-- jquery-ui-dialog -->
+		<div id="dialog" title="Instruções">
+			<p>Bem-vindo ao Terceiro Trabalho de Computação Gráfica!</p>
+			<p>É possível treinar as funcionalidades aqui descritas sem fechar esta janela. Também é possível arrastá-la
+			   para um local mais conveniente. Caso a feche, basta recarregar a página que ela reaparecerá.</p>
+			<p>O botão <b>direito</b> do mouse, juntamente com a <b>rodinha</b>, transaladam o objeto.
+			   O botão <b>esquerdo</b> do mouse se encarregará de rotacioná-lo.</p>
+			<p>Para adicionar uma nova keyframe, basta clicar com o botão <b>direito</b> do mouse em um dos círculos, tornando-o <span style="color: #0eb234"><b>verde</b></span>.
+			   Se quiser apenas visitar uma frame, clique com o botão <b>esquerdo</b>. O círculo <span style="color: #e83e55"><b>vermelho</b></span> mostrará onde você está.</p>
+			<p>A linha de círculos funciona como um slider. Assim, ao clicar com o botão <b>esquerdo</b> em um círculo e segurar, 
+			   é possível arrastar o mouse pelos círculos e ir assistindo ao desenrolar da animação. Para dar Play/Pause, basta clicar
+			   no círculo mais à esquerda. Uma bolinha <span style="color: #e83e55"><b>vermelha</b></span> começará a percorrer a timeline.</p>
+		</div>
+		
 
 
 	</body>

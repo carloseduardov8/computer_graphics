@@ -1,15 +1,18 @@
-var mouseIsPressed=0, mouseX, mouseY, pMouseX, pmouseY;
-var camera, scene, renderer, container, portal;
-var totalFrames = 90;					// Number of frames in timeline
-var allFrames = [];						// Array to hold frames
-var selected;							// Currently selected frame
-var totalSelected = 0;					// Total frames already selected
-var currentFrame = 1;					// Current frame to start animation from
-var playAnim = false;					// Tracks if the play button is active
-var clickingFrames = false;
-var eo = 0;
+var mouseIsPressed=0, mouseX, mouseY, pMouseX, pmouseY;		// Mouse variables
+var camera, scene, renderer, container, portal;				// THREE variables
+var totalFrames = 80;										// Number of frames in timeline
+var allFrames = [];											// Array to hold frames
+var selected;												// Currently selected frame
+var totalSelected = 0;										// Total frames already selected
+var previousFrame = 1;										// Frame previously visited
+var currentFrame = 2;										// Current frame to start animation from
+var playAnim = false;										// Tracks if the play button is active
+var clickingFrames = false;									// Tracks if user is sliding through frames (mouse is down)
+var eo = 0;													// Variable incremented every render call
+
 init();
 animate();
+
 
 // Frame class:
 function Frame(keyframeBool, position, quaternion) {
@@ -49,6 +52,7 @@ function Frame(keyframeBool, position, quaternion) {
 	}
 }
 
+// Called on startup:
 function init() {
 	
 	// Creates the canvas:
@@ -170,7 +174,16 @@ function init() {
 	
 	// Adds event listener to play button:
 	document.getElementById("play").addEventListener("click", function(){
-		playAnim = true;
+		// If animation is halted:
+		if (playAnim == false){
+			// Checks if there exists at least 2 keyframes:
+			if (totalSelected >= 2){
+				playAnim = true;
+			}
+		// If animation is ongoing:
+		} else {
+			playAnim = false;
+		}
 	});
 }
 
@@ -188,21 +201,8 @@ function animate() {
 	// Executes animation if need be:
 	if (playAnim){
 		
-		// Handles timeline animation (marks frames as red as they animate):
-		document.getElementById("frame"+currentFrame).setAttribute("class", "round-button animated");
-		if (currentFrame == 1){
-			if (allFrames[totalFrames].isKeyframe() == true){
-				document.getElementById("frame"+totalFrames).setAttribute("class", "round-button selected");
-			} else {
-				document.getElementById("frame"+totalFrames).setAttribute("class", "round-button");
-			}
-		} else {
-			if (allFrames[currentFrame-1].isKeyframe() == true){
-				document.getElementById("frame"+(currentFrame-1)).setAttribute("class", "round-button selected");
-			} else {
-				document.getElementById("frame"+(currentFrame-1)).setAttribute("class", "round-button");
-			}
-		}
+		// Handles timeline animation:
+		colorTimeline();
 		
 		// Applies animation:
 		var position = allFrames[currentFrame].getPosition();
@@ -216,6 +216,7 @@ function animate() {
 		eo++;
 		if (eo == 2){
 			currentFrame++;
+			previousFrame = currentFrame-1;
 			eo = 0;
 		}
 		
@@ -223,11 +224,26 @@ function animate() {
 		if (currentFrame == totalFrames+1){
 			currentFrame = 1;
 		}
+		
+		// Resets previousFrame if it overshot the timeline:
+		if (previousFrame == totalFrames+1){
+			previousFrame = 1;
+		}
 	}
 	
 	// Updates scene:
 	renderer.render( scene, camera );
 	requestAnimationFrame( animate );
+}
+
+function colorTimeline(){
+	// Handles timeline animation (marks frames as red as they animate):
+	document.getElementById("frame"+currentFrame).setAttribute("class", "round-button animated");
+	if (allFrames[previousFrame].isKeyframe() == true){
+		document.getElementById("frame"+previousFrame).setAttribute("class", "round-button selected");
+	} else {
+		document.getElementById("frame"+previousFrame).setAttribute("class", "round-button");
+	}
 }
 
 function interpolate(start, end){
@@ -285,8 +301,7 @@ function translateZ() {
 }
 
 // Function to be called when dragging with right click:
-function translateXY() 
-{
+function translateXY() {
 	var delta = new THREE.Vector3();
 	var mouse = new THREE.Vector3(mouseX, mouseY, 0);
 	var pmouse = new THREE.Vector3(pmouseX, pmouseY, 0);
@@ -333,10 +348,10 @@ function getArcBallVec(x, y){
 	p.subVectors(mouse, dist);
 	p.y = -p.y;
 
-	var OPSquared = p.x * p.x + p.y * p.y;
+	var legs = p.x * p.x + p.y * p.y;
 
-	if (OPSquared <= 200*200) {
-		p.z = Math.sqrt(200*200 - OPSquared);  // Pythagore
+	if (legs <= 200*200) {
+		p.z = Math.sqrt(200*200 - legs);  // Pythagore
 	} else {
 		p.normalize();  // nearest point
 	} 
@@ -345,14 +360,17 @@ function getArcBallVec(x, y){
 }
 
 
-
 // Function to be called when a keyframe is clicked on:
 function clickKeyFrame(index){
 	
 	return function(event) { 
 		
-		// Moves timeline to selected frame:
+		// Moves timeline to visited frame:
+		previousFrame = currentFrame;
 		currentFrame = index;
+		
+		// Handles timeline coloring:
+		colorTimeline();
 		
 		// Signals that mouse is down:
 		clickingFrames = true;
@@ -371,8 +389,7 @@ function clickKeyFrame(index){
 
 // Applies the transformation of the index-th frame to the object:
 function visitFrame(index){
-	// Moves timeline to visited frame:
-	currentFrame = index;
+	
 	// Applies keyframe information to object:
 	var position = allFrames[currentFrame].getPosition();
 	portal.position.x = position.x;
@@ -385,6 +402,7 @@ function visitFrame(index){
 
 // Uses the index-th to create a new keyframe:
 function createKeyFrame(index){
+	
 	// Marks new frame as selected:
 	document.getElementById("frame"+index).setAttribute("class", "round-button selected");
 	selected = index;
@@ -441,14 +459,16 @@ function mouseMovementOverFrames(index){
 	return function(event) { 
 		// Checks if mouse is pressed:
 		if (clickingFrames == true){
+			
+			// Moves timeline to visited frame:
+			previousFrame = currentFrame;
+			currentFrame = index;
+			
+			// Handles timeline coloring:
+			colorTimeline();
+			
+			// Applies frame transformation:
 			visitFrame(index);
 		}
-	};
-}
-
-// Called when mouse is released over frames:
-function stopClickingFrames(){
-	return function(event) {		
-		clickingFrames = false;
 	};
 }
