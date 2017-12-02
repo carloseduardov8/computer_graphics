@@ -309,8 +309,8 @@ function translateXY() {
 	//Calculates difference for translation:
 	delta.subVectors(mouse, pmouse);
 	
-	// Attenuates translation factor:
-	delta.multiplyScalar(0.006);
+	// Attenuates translation factor (measured empirically):
+	delta.multiplyScalar(0.006*(0.28-portal.position.z*0.142));
 
 	portal.position.x += delta.x;
 	portal.position.y -= delta.y;
