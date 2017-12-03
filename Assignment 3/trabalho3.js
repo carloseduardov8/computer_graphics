@@ -140,7 +140,7 @@ function init() {
 			pmouseY = mouseY;
 			setMouse();
 			if (mouseIsPressed == 1){
-				rotate(); 
+				rotateXYZ(); 
 			} else if (mouseIsPressed == 3){
 				translateXY();
 			} 
@@ -317,21 +317,28 @@ function translateXY() {
 }
 
 // Function to be called when dragging with left click:
-function rotate(){
-	var vec1 = getArcBallVec(pmouseX, pmouseY);
-	var vec2 = getArcBallVec(mouseX, mouseY);
+function rotateXYZ(){
+	
+	// Finds previous mouse vector:
+	var vec1 = findVec(pmouseX, pmouseY);
+	
+	// Finds current mouse vector:
+	var vec2 = findVec(mouseX, mouseY);
+	
 	var angle = vec1.angleTo(vec2);
 	var vec3 = new THREE.Vector3();
-	var quaternion = new THREE.Quaternion();
 
+	// Finds the rotation axis:
 	vec3.crossVectors(vec1, vec2);
 	vec3.normalize();
-
+	
+	// Applies the rotation:
+	var quaternion = new THREE.Quaternion();
 	quaternion.setFromAxisAngle(vec3, angle);
 	portal.applyQuaternion(quaternion);
 }
 
-function getArcBallVec(x, y){
+function findVec(x, y){
 	
 	var proj = new THREE.Vector3();
 
@@ -340,22 +347,28 @@ function getArcBallVec(x, y){
     proj.project(camera);
 	
 	var dist = new THREE.Vector3(proj.x * (renderer.context.canvas.width/2),
-						     -( proj.y * (renderer.context.canvas.height/2) ),
-							 0);
+						         -( proj.y * (renderer.context.canvas.height/2) ),
+							     0);
 	
+	// Mouse coordinates (centers to screen):
 	var mouse = new THREE.Vector3(x - (window.innerWidth / 2), y - (window.innerHeight / 2), 0);
 	var p = new THREE.Vector3();
 	p.subVectors(mouse, dist);
 	p.y = -p.y;
 
-	var legs = p.x * p.x + p.y * p.y;
+	// Calculates leg of Pythagorean triangle:
+	var leg = p.x * p.x + p.y * p.y;
 
-	if (legs <= 200*200) {
-		p.z = Math.sqrt(200*200 - legs);  // Pythagore
+	// Hypotenuse value measured empirically (150):
+	if (leg <= 22500) {
+		// Inside sphere:
+		p.z = Math.sqrt(22500- leg);
 	} else {
-		p.normalize();  // nearest point
+		// Outside sphere (projection):
+		p.normalize();
 	} 
 
+	// Returns calculated vector:
 	return p;
 }
 
@@ -375,11 +388,15 @@ function clickKeyFrame(index){
 		// Signals that mouse is down:
 		clickingFrames = true;
 		
-		// Handles right mouse click (create keyframe):
+		// Handles right mouse click (create/remove keyframe):
 		if (event.which == 3){
-			createKeyFrame(index);
+			if (allFrames[index].isKeyframe() == true){
+				removeKeyFrame(index);
+			} else {
+				createKeyFrame(index);
+			}
 		// Handles left mouse click (visit keyframe):
-		} else if (event.which == 1){
+		} else if ((event.which == 1) && (totalSelected >= 2)){
 			visitFrame(index);
 		}
 	};
@@ -403,7 +420,7 @@ function visitFrame(index){
 // Uses the index-th to create a new keyframe:
 function createKeyFrame(index){
 	
-	// Marks new frame as selected:
+	// Marks clicked frame as selected:
 	document.getElementById("frame"+index).setAttribute("class", "round-button selected");
 	selected = index;
 	totalSelected++;
@@ -415,8 +432,6 @@ function createKeyFrame(index){
 	
 	// Checks to see if interpolation is required:
 	if (totalSelected >= 2){
-		
-		console.log("Interpolating start");
 		
 		// Searches for the first keyrame PRIOR to the current frame:
 		var j = index;
@@ -430,7 +445,6 @@ function createKeyFrame(index){
 			// Checks if allFrames[j] is a keyframe:
 			if (allFrames[j].isKeyframe() == true){
 				interpolate(j, index);
-				console.log("Interpolating from "+j+" to "+index);
 				break;
 			}
 		} while (allFrames[j].isKeyframe() == false);
@@ -447,18 +461,63 @@ function createKeyFrame(index){
 			// Checks if allFrames[j] is a keyframe:
 			if (allFrames[j].isKeyframe() == true){
 				interpolate(index, j);
-				console.log("Interpolating from "+index+" to "+j);
 				break;
 			}
 		} while (allFrames[j].isKeyframe() == false);
 	}
 }
 
+// Called when a keyframe is to be cleared:
+function removeKeyFrame(index){
+	
+	// Marks clicked frame as unselected:
+	document.getElementById("frame"+index).setAttribute("class", "round-button");
+	selected = index;
+	totalSelected--;
+	
+	// Updates corresponding frame values:
+	allFrames[index].setKeyframe(false);
+	
+	// Searches for the first keyrame PRIOR to the current frame:
+	var j = index;
+	do {
+		// Decrements j:
+		--j;
+		// Resets j if it overshot the timeline:
+		if (j == 0){
+			j = totalFrames;
+		}
+		// Checks if allFrames[j] is a keyframe:
+		if (allFrames[j].isKeyframe() == true){
+			break;
+		}
+	} while (allFrames[j].isKeyframe() == false);
+	
+	// Searches for the first keyrame SUBSEQUENT to the current frame:
+	var k = index;
+	do {
+		// Increments k:
+		++k;
+		// Resets j if it overshot the timeline:
+		if (k == totalFrames+1){
+			k = 1;
+		}
+		// Checks if allFrames[j] is a keyframe:
+		if (allFrames[k].isKeyframe() == true){
+			break;
+		}
+	} while (allFrames[k].isKeyframe() == false);
+	
+	// Interpolates through remaining keyframes:
+	interpolate(j, k);
+	
+}
+
 // Called when rolling mouse over frames:
 function mouseMovementOverFrames(index){
 	return function(event) { 
 		// Checks if mouse is pressed:
-		if (clickingFrames == true){
+		if ((clickingFrames == true) && (totalSelected >= 2)){
 			
 			// Moves timeline to visited frame:
 			previousFrame = currentFrame;
